@@ -17,13 +17,13 @@ You can implement one of the following handler types:
 - **`IResourceHandler`**: A handler designed to process a single resource type.
 - **`IGenericResourceHandler`**: A more flexible handler capable of processing all resource definitions within a file.
 
-```text
-`IResourceHandler` is a specialized implementation of `IGenericResourceHandler`.
-```
+> [!NOTE]
+> `IResourceHandler` is a specialized implementation of `IGenericResourceHandler`.
 
-```text
-By design you can only define one `IGenericResourceHandler` per extension
-```
+
+> [!IMPORTANT]
+> By design you can only define one `IGenericResourceHandler` per extension
+
 
 ### Example Usage
 
