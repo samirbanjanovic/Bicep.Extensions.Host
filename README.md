@@ -10,11 +10,19 @@ Bicep.Extensions.JumpStart is a lightweight wrapper designed to simplify the cre
 
 ## How It Works
 
-The core functionality revolves around the `FlexAsync` method, which allows you to define and register your services and handlers. This method takes care of setting up the DI container and running the extension server.
+The core functionality revolves around the `FlexAsync` method, which allows you to define and register your services and handlers.
+You can write a single handler per resource type by implementing the `IResourceHandler` interface. Or, you can write a generic handler that will handle
+all resource defintions within a file by implementing the `IGenericResourceHandler` interface.
+
+> Note: `IResourceHandler` is a child of `IGenericResourceHandler`
+
+> Important: The DI bag is configured to only resolve a single `IGenericResourceHandler` per extension.
 
 ### Example Usage
 
-Here’s an example of how to use `FlexAsync` to run your extension with defined handlers and services:
+Here’s an example of how to use `FlexAsync`. In this example we've implemented `OmniHandler` as a `IGenericResourceHandler` that has a dependency on some kind of `IBackendService`.  
+
+Upon start all services are resolved and the extension is running and listening for requests.
 
 ```csharp
 await FlexAsync(services =>
