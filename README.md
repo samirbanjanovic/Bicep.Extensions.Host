@@ -10,7 +10,7 @@ Bicep.Extensions.JumpStart is a lightweight wrapper designed to simplify the cre
 
 ## How It Works
 
-The core functionality of this framework revolves around the `FlexAsync` method, which simplifies the process of defining and registering your services and handlers.
+The core functionality of this framework revolves around the `FlexAsync` method, which simplifies the process of defining and registering your services and handlers. Additionally, you can register services to further configure the backend Kestrel server that hosts the extension endpoint, allowing for greater flexibility and customization of your extension's runtime environment.
 
 You can implement one of the following handler types:
 
