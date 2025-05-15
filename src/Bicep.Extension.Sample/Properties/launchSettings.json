@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Bicep.Extension.Sample": {
+      "commandName": "Project",
+      "commandLineArgs": "--socket /tmp/kestrel-test.sock"
+    }
+  }
+}
