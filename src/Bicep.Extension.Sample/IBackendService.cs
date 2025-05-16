@@ -9,9 +9,9 @@ namespace Bicep.Extension.Sample
 {
     public interface IBackendService
     {
-        Task<bool> CreateOrUpdate(JsonObject json);
-        Task<bool> Delete(JsonObject json);
-        Task<bool> Get(JsonObject json);
-        Task<bool> Preview(JsonObject json);
+        Task<bool> CreateOrUpdate(string json);
+        Task<bool> Delete(string json);
+        Task<bool> Get(string json);
+        Task<bool> Preview(string json);
     }
 }

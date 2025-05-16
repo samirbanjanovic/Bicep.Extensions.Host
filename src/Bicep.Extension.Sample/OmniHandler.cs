@@ -1,9 +1,13 @@
-﻿using Bicep.Local.Extension.Protocol;
+﻿using Bicep.Extension.Host;
+using Bicep.Extension.Sample.Models;
+using Bicep.Local.Extension.Protocol;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace Bicep.Extension.Sample.Handlers
 {
     public class OmniHandler
-       : IGenericResourceHandler
+       : TypedResourceHandler<StronglyTypedResource>
     {
         private readonly IBackendService backendService;
 
@@ -12,29 +16,38 @@ namespace Bicep.Extension.Sample.Handlers
             this.backendService = backendService;
         }
 
-        public async Task<LocalExtensibilityOperationResponse> CreateOrUpdate(ResourceSpecification request, CancellationToken cancellationToken)
-        {                        
-            var properties = request.Properties;
-            var type = request.Type;
+        public override async Task<LocalExtensibilityOperationResponse> CreateOrUpdate(StronglyTypedResource resource, ResourceSpecification? resourceSpecification, CancellationToken cancellationToken)
+        {
+            var json = JsonSerializer.Serialize(resource);
 
-            await this.backendService.CreateOrUpdate(properties);
+            await this.backendService.CreateOrUpdate(json);
 
-            return new(
-                new(request.Type, request.ApiVersion, "Succeeded", new(), request.Config, new()),
-                null);
+            return new
+                (
+                    new 
+                    (
+                        resource.GetType().Name,
+                        "1.0.0",
+                        "Succeeded",
+                        new(),
+                        new(),
+                        JsonNode.Parse(json).AsObject() ?? new JsonObject().AsObject()
+                    ),
+                    null
+                );
         }
 
-        public Task<LocalExtensibilityOperationResponse> Delete(ResourceReference request, CancellationToken cancellationToken)
+        public override Task<LocalExtensibilityOperationResponse> Delete(ResourceReference resourceReference, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public Task<LocalExtensibilityOperationResponse> Get(ResourceReference request, CancellationToken cancellationToken)
+        public override Task<LocalExtensibilityOperationResponse> Get(ResourceReference resourceReference, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public Task<LocalExtensibilityOperationResponse> Preview(ResourceSpecification request, CancellationToken cancellationToken)
+        public override Task<LocalExtensibilityOperationResponse> Preview(StronglyTypedResource resource, ResourceSpecification resourceSpecification, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

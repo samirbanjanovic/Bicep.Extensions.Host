@@ -1,4 +1,7 @@
-﻿using Bicep.Local.Extension.Protocol;
+﻿using Azure.Bicep.Types.Concrete;
+using Azure.Bicep.Types.Index;
+using Bicep.Host.Types;
+using Bicep.Local.Extension.Protocol;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -31,7 +34,10 @@ namespace Bicep.Extension.Host
 
         public static IServiceCollection AddBicepServices(this IServiceCollection services)
         {
+            services.AddSingleton(new ExtensionSpec("sample-ext", "0.0.1"));
+            services.AddSingleton<TypeFactory>(sp => new TypeFactory([]));
             services.AddSingleton<BicepResourceHandlerMap>();
+            services.AddSingleton<TypeSpecGenerator>();
             services.AddGrpc();
             services.AddGrpcReflection();
             return services;
@@ -97,15 +103,15 @@ namespace Bicep.Extension.Host
         }
 
         public static IServiceCollection AddBicepGenericResourceHandler<T>(this IServiceCollection services)
-            where T : class, IGenericResourceHandler
+            where T : class, ITypedResourceHandler
         {
-            var genericHandlers = services.Count(service => service.ServiceType is IGenericResourceHandler);
+            var genericHandlers = services.Count(service => service.ServiceType is ITypedResourceHandler);
             if (genericHandlers > 0)
             {
                 throw new InvalidOperationException("Generic resource handler has already been added.");
             }
 
-            services.AddSingleton<IGenericResourceHandler, T>();
+            services.AddSingleton<ITypedResourceHandler, T>();
 
             return services;
         }
