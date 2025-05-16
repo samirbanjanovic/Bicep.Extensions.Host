@@ -5,23 +5,15 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Options;
 using System.Diagnostics;
+using System.Threading;
 
 namespace Bicep.Extension.Host
 {
     public static class BicepExtensionHost
     {
-        private static bool IsTracingEnabled
-            => bool.TryParse(Environment.GetEnvironmentVariable("BICEP_TRACING_ENABLED"), out var value) && value;
-
-        public static IConfigurationBuilder AddBicepCommandLineArguments(this ConfigurationManager configuration, string[] args)
-        {
-            if (IsTracingEnabled)
-            {
-                Trace.Listeners.Add(new TextWriterTraceListener(Console.Error));
-            }
-
-            var mappings = new Dictionary<string, string>
+        private static Dictionary<string, string> ArgumentMappings => new Dictionary<string, string>
             {
                 { "--socket", "socket" },
                 { "--http", "http" },
@@ -31,13 +23,11 @@ namespace Bicep.Extension.Host
                 { "-t", "http" },
                 { "-p", "pipe" },
                 { "-w", "waitForDebugger" }
-
             };
 
-            configuration.AddCommandLine(args, mappings);
 
-            return configuration;
-        }
+        private static bool IsTracingEnabled
+            => bool.TryParse(Environment.GetEnvironmentVariable("BICEP_TRACING_ENABLED"), out var value) && value;
 
         public static IServiceCollection AddBicepServices(this IServiceCollection services)
         {
@@ -52,7 +42,7 @@ namespace Bicep.Extension.Host
             app.MapGrpcService<BicepResourceRequestDispatcher>();
 
             var env = app.Environment;
-            if(env.IsDevelopment())
+            if (env.IsDevelopment())
             {
                 app.MapGrpcReflectionService();
             }
@@ -62,14 +52,33 @@ namespace Bicep.Extension.Host
 
         public static WebApplicationBuilder AddBicepExtensionHost(this WebApplicationBuilder builder, string[] args)
         {
-            builder.Configuration.AddBicepCommandLineArguments(args);
+
+            if (IsTracingEnabled)
+            {
+                Trace.Listeners.Add(new TextWriterTraceListener(Console.Error));
+            }
+
+            builder.Configuration.AddCommandLine(args, ArgumentMappings);
+
+            if (builder.Configuration.GetValue<bool>("waitForDebugger"))
+            {
+                var cancellationToken = new CancellationTokenSource(TimeSpan.FromMinutes(5)).Token;
+
+                while (!Debugger.IsAttached && !cancellationToken.IsCancellationRequested)
+                {
+                    Thread.Sleep(100);
+                }
+
+                Debugger.Break();
+            }
+
 
             builder.WebHost.ConfigureKestrel((context, options) =>
             {
-                (string? Socket, string? Pipe, int Http) connectionOptions = (context.Configuration.GetValue<string>("socket"), 
+                (string? Socket, string? Pipe, int Http) connectionOptions = (context.Configuration.GetValue<string>("socket"),
                                                                                   context.Configuration.GetValue<string>("pipe"),
                                                                                   context.Configuration.GetValue<int>("http", 5000));
-                
+
                 switch (connectionOptions)
                 {
                     case { Socket: { }, Pipe: null }:
@@ -78,7 +87,6 @@ namespace Bicep.Extension.Host
                     case { Socket: null, Pipe: { } }:
                         options.ListenNamedPipe(connectionOptions.Pipe, listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
                         break;
-                    case { Http: { } }:                        
                     default:
                         options.ListenLocalhost(connectionOptions.Http, listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
                         break;
