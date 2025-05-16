@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
 
 namespace Bicep.Extension.Host
@@ -23,11 +24,14 @@ namespace Bicep.Extension.Host
             var mappings = new Dictionary<string, string>
             {
                 { "--socket", "socket" },
+                { "--http", "http" },
                 { "--pipe", "pipe" },
                 { "--wait-for-debugger", "waitForDebugger" },
                 { "-s", "socket" },
+                { "-t", "http" },
                 { "-p", "pipe" },
                 { "-w", "waitForDebugger" }
+
             };
 
             configuration.AddCommandLine(args, mappings);
@@ -39,22 +43,33 @@ namespace Bicep.Extension.Host
         {
             services.AddSingleton<BicepResourceHandlerMap>();
             services.AddGrpc();
+            services.AddGrpcReflection();
             return services;
         }
 
         public static WebApplication UseBicepDispatcher(this WebApplication app)
         {
             app.MapGrpcService<BicepResourceRequestDispatcher>();
+
+            var env = app.Environment;
+            if(env.IsDevelopment())
+            {
+                app.MapGrpcReflectionService();
+            }
+
             return app;
         }
 
         public static WebApplicationBuilder AddBicepExtensionHost(this WebApplicationBuilder builder, string[] args)
         {
             builder.Configuration.AddBicepCommandLineArguments(args);
+
             builder.WebHost.ConfigureKestrel((context, options) =>
             {
-                (string? Socket, string? Pipe) connectionOptions = (context.Configuration.GetValue<string>("socket"), context.Configuration.GetValue<string>("pipe"));
-
+                (string? Socket, string? Pipe, int Http) connectionOptions = (context.Configuration.GetValue<string>("socket"), 
+                                                                                  context.Configuration.GetValue<string>("pipe"),
+                                                                                  context.Configuration.GetValue<int>("http", 5000));
+                
                 switch (connectionOptions)
                 {
                     case { Socket: { }, Pipe: null }:
@@ -63,8 +78,10 @@ namespace Bicep.Extension.Host
                     case { Socket: null, Pipe: { } }:
                         options.ListenNamedPipe(connectionOptions.Pipe, listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
                         break;
+                    case { Http: { } }:                        
                     default:
-                        throw new InvalidOperationException("Either socketPath or pipeName must be specified.");
+                        options.ListenLocalhost(connectionOptions.Http, listenOptions => listenOptions.Protocols = HttpProtocols.Http2);
+                        break;
                 }
             });
 

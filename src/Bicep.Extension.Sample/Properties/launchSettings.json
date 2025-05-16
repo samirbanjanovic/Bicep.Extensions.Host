@@ -1,8 +1,10 @@
 {
   "profiles": {
     "Bicep.Extension.Sample": {
-      "commandName": "Project",
-      "commandLineArgs": "--socket /tmp/kestrel-test.sock"
+      "commandName": "Project",      
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
     }
   }
 }

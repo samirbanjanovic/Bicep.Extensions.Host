@@ -10,6 +10,7 @@
     <PackageReference Include="Azure.Bicep.Local.Extension" Version="0.35.1" />
     <PackageReference Include="Azure.Bicep.Types" Version="0.5.110" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.71.0" />
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.71.0" />
     <PackageReference Include="Grpc.Core" Version="2.46.6" />
     <PackageReference Include="Microsoft.Extensions.Configuration.CommandLine" Version="9.0.5" />
   </ItemGroup>
