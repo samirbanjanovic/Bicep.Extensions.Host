@@ -19,8 +19,9 @@ A local extension consists of the following components:
 
 All extension binaries are expected to accept the following CLI arguments:
 
-- `-s | --socket <socket_name>`: The path to the domain socket to connect on.
-- `-p | --pipe <pipe_name>`: The named pipe to connect on.
+- `-s | --socket <socet_-name>`: The path to the domain socket to connect on.
+- `-p | --pipe <pipe-name>`: The named pipe to connect on.
+- `-t | --http <port-number>`: Launch service in HTTP mode binding to specific port.  Default port is 5000.
 - `-w | --wait-for-debugger`: Signals that you want to debug the extension, and that execution should pause until you are ready.
 
 Once started (either via domain socket or named pipe), the extension:
