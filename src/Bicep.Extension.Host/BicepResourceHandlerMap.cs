@@ -37,17 +37,22 @@ namespace Bicep.Extension.Host
         }
 
         public ITypedResourceHandler GetResourceHandler<T>()
-            where T : TypedResourceHandler<T>
+            where T : ITypedResourceHandler
             => GetResourceHandler(typeof(T));
 
         public ITypedResourceHandler GetResourceHandler(Type resourceType)
         {
-            if (resourceHandlerMap.TryGetValue(resourceType, out var handler))
+            ITypedResourceHandler handler;
+            if (resourceHandlerMap.TryGetValue(resourceType, out handler))
+            {
+                return handler;
+            }
+            else if (resourceHandlerMap.TryGetValue(typeof(object), out handler))
             {
                 return handler;
             }
 
-            throw new ArgumentException($"No resource handler found for type {resourceType}");
+            throw new ArgumentException($"No generic resource handler or strongly typed resource handler exists for type {resourceType}");
         }
 
         private static ImmutableDictionary<Type, ITypedResourceHandler> BuildResourceHandlerMap(IEnumerable<ITypedResourceHandler>? resourceHandlers)
@@ -58,17 +63,22 @@ namespace Bicep.Extension.Host
             // as well as the resource handler map
             foreach (var resourceHandler in resourceHandlers)
             {
-                Type? resourceType = typeof(object);
-                if (resourceHandler.GetType().IsGenericType)
+                var resourceHandlerType = resourceHandler.GetType();
+                // use typeof(object) to indicate a generic resource handler
+                var resourceType = typeof(object);
+                if (resourceHandlerType.TryGetStronglyTypedResourceHandler(out Type? baseInterface))
                 {
-                    resourceType = resourceHandler.GetType().GetGenericArguments()[0];
-
+                    resourceType = baseInterface.GetGenericArguments()[0];
                 }
-                
+                else if (!resourceHandlerType.IsGenericTypedResourceHandler())
+                {
+                    throw new ArgumentException($"Resource handler {resourceHandler.GetType()} is not a generic resource handler or typed resource handler.");
+                }
+
                 if (!hanlderDictionary.TryAdd(resourceType, resourceHandler))
                 {
-                    throw new ArgumentException($"Resource handler for { (resourceType == typeof(object) ? "generic type" : $"type {resourceType}")}  already exists.");
-                }                
+                    throw new ArgumentException($"Resource handler for {(resourceType == typeof(object) ? "generic type" : $"type {resourceType}")}  already exists.");
+                }
             }
 
             return hanlderDictionary.ToImmutableDictionary();

@@ -19,9 +19,9 @@ namespace Bicep.Extension.Host
     {
         private readonly ILogger<BicepResourceRequestDispatcher> logger;
         private readonly BicepResourceHandlerMap resourceHandlerMap;
-        private readonly TypeSpecGenerator typeSpecGenerator;
+        private readonly ITypeSpecGenerator typeSpecGenerator;
 
-        public BicepResourceRequestDispatcher(BicepResourceHandlerMap resourceHandlerMap, TypeSpecGenerator typeSepcGenerator, ILogger<BicepResourceRequestDispatcher> logger)
+        public BicepResourceRequestDispatcher(BicepResourceHandlerMap resourceHandlerMap, ITypeSpecGenerator typeSepcGenerator, ILogger<BicepResourceRequestDispatcher> logger)
         {
             this.logger = logger;
             this.typeSpecGenerator = typeSepcGenerator ?? throw new ArgumentNullException(nameof(typeSepcGenerator));   
@@ -36,12 +36,12 @@ namespace Bicep.Extension.Host
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Preview(Rpc.ResourceSpecification request, ServerCallContext context)
         {
-            var types = typeSpecGenerator.GenerateTypes(); ;
+            var spec = typeSpecGenerator.GenerateBicepResourceTypes();
             Rpc.LocalExtensibilityOperationResponse opResponse = new();
             opResponse.Resource = new Rpc.Resource()
             {
-                Identifiers = types["types.json"],
-                Properties = types["index.json"],
+                Identifiers = spec.TypesJson,
+                Properties = spec.IndexJson,
                 Status = "Succeeded",
                 Type = "types.json",
                 ApiVersion = "1.0.0"

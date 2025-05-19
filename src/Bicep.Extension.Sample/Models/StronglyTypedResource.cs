@@ -3,7 +3,6 @@ using Bicep.Host.Types;
 
 namespace Bicep.Extension.Sample.Models;
 
-[ResourceTypeAnnotation]
 public class StronglyTypedResource
 {
     public StronglyTypedResource() { }

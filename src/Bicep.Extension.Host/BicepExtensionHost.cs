@@ -32,12 +32,28 @@ namespace Bicep.Extension.Host
         private static bool IsTracingEnabled
             => bool.TryParse(Environment.GetEnvironmentVariable("BICEP_TRACING_ENABLED"), out var value) && value;
 
+        public static IServiceCollection AddBicepTypeGenerator<T>(this IServiceCollection services)
+            where T : class, ITypeSpecGenerator
+        {
+            // remove previously registered BicepTypeGenerator
+            var serviceDescriptor = services.FirstOrDefault(services => services.ServiceType == typeof(ITypeSpecGenerator));
+            if(serviceDescriptor is not null)
+            {
+                services.Remove(serviceDescriptor);
+            }
+
+            services.AddSingleton<ITypeSpecGenerator, T>();
+            return services;
+        }
+
         public static IServiceCollection AddBicepServices(this IServiceCollection services)
         {
             services.AddSingleton(new ExtensionSpec("sample-ext", "0.0.1"));
             services.AddSingleton<TypeFactory>(sp => new TypeFactory([]));
             services.AddSingleton<BicepResourceHandlerMap>();
-            services.AddSingleton<TypeSpecGenerator>();
+            services.AddSingleton(sp => new ExtensionSpec("test-ext", "0.0.1"));
+            services.AddSingleton(sp => new TypeConfiguration(new Dictionary<string, ObjectTypeProperty>()));
+            services.AddBicepTypeGenerator<StandardTypeSpecGenerator>();
             services.AddGrpc();
             services.AddGrpcReflection();
             return services;
@@ -102,13 +118,19 @@ namespace Bicep.Extension.Host
             return builder;
         }
 
-        public static IServiceCollection AddBicepGenericResourceHandler<T>(this IServiceCollection services)
-            where T : class, ITypedResourceHandler
+        public static IServiceCollection AddGenericBicepResourceHandler<T>(this IServiceCollection services)
+            where T : GenericTypedResourceHandler, ITypedResourceHandler
         {
-            var genericHandlers = services.Count(service => service.ServiceType is ITypedResourceHandler);
+            var interfaces = typeof(T).GetInterfaces();
+            if (typeof(T).TryGetStronglyTypedResourceHandler(out var _))
+            {
+                throw new InvalidOperationException($"To register a strongly typed resource hander use {nameof(AddTypedBicepResourceHandler)}");
+            }
+
+            var genericHandlers = services.Count(service => !service.ServiceType.IsGenericType && service.ServiceType is ITypedResourceHandler);
             if (genericHandlers > 0)
             {
-                throw new InvalidOperationException("Generic resource handler has already been added.");
+                throw new InvalidOperationException("A generic resource handler has already been added.");
             }
 
             services.AddSingleton<ITypedResourceHandler, T>();
@@ -116,8 +138,18 @@ namespace Bicep.Extension.Host
             return services;
         }
 
-        public static IServiceCollection AddBicepResourceHandler<T>(this IServiceCollection services)
-            where T : class, IResourceHandler
-            => services.AddSingleton<IResourceHandler, T>();
+        public static IServiceCollection AddTypedBicepResourceHandler<T>(this IServiceCollection services)
+            where T : GenericTypedResourceHandler, ITypedResourceHandler
+        {
+            if (!typeof(T).TryGetStronglyTypedResourceHandler(out var _))
+            {
+                throw new InvalidOperationException($"To registere a generic resource handler use {nameof(AddGenericBicepResourceHandler)}");
+            }
+
+            services.AddSingleton<ITypedResourceHandler, T>();
+
+            return services;
+        }
+
     }
 }

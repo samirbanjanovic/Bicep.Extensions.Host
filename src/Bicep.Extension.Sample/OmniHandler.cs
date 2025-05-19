@@ -1,6 +1,7 @@
 ﻿using Bicep.Extension.Host;
 using Bicep.Extension.Sample.Models;
 using Bicep.Local.Extension.Protocol;
+using CommandLine;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 
@@ -22,19 +23,18 @@ namespace Bicep.Extension.Sample.Handlers
 
             await this.backendService.CreateOrUpdate(json);
 
-            return new
-                (
-                    new 
-                    (
-                        resource.GetType().Name,
-                        "1.0.0",
-                        "Succeeded",
-                        new(),
-                        new(),
-                        JsonNode.Parse(json).AsObject() ?? new JsonObject().AsObject()
-                    ),
-                    null
-                );
+            return Success(
+            resource.GetType().Name
+            , new()
+            {
+                ["name"] = resourceSpecification.Properties["name"],
+                ["type"] = resourceSpecification.Type,
+                ["apiVersion"] = resourceSpecification.ApiVersion,
+                ["properties"] = new JsonObject()
+                {
+                    ["status"] = "Created"
+                }
+            });
         }
 
         public override Task<LocalExtensibilityOperationResponse> Delete(ResourceReference resourceReference, CancellationToken cancellationToken)

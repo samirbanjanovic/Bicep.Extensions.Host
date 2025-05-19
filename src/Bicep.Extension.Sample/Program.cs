@@ -16,7 +16,7 @@ namespace Bicep.Extension.Sample
 
             builder.Services
                    .AddBicepServices()
-                   .AddBicepGenericResourceHandler<OmniHandler>()
+                   .AddTypedBicepResourceHandler<OmniHandler>()
                    .AddSingleton<IBackendService, LocalOutputService>();
 
             var app = builder.Build();
