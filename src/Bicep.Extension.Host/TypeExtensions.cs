@@ -13,7 +13,7 @@ namespace Bicep.Extension.Host
             => type.GetInterfaces().Any(i => !i.IsGenericType && i == typeof(ITypedResourceHandler));
 
 
-        public static bool TryGetStronglyTypedResourceHandler(this Type type, out Type? resourceHandlerInterface)
+        public static bool TryGetTypedResourceHandlerInterface(this Type type, out Type? resourceHandlerInterface)
         {
             resourceHandlerInterface = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ITypedResourceHandler<>));
 

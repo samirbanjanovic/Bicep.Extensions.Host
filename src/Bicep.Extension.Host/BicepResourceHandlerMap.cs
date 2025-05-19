@@ -66,7 +66,7 @@ namespace Bicep.Extension.Host
                 var resourceHandlerType = resourceHandler.GetType();
                 // use typeof(object) to indicate a generic resource handler
                 var resourceType = typeof(object);
-                if (resourceHandlerType.TryGetStronglyTypedResourceHandler(out Type? baseInterface))
+                if (resourceHandlerType.TryGetTypedResourceHandlerInterface(out Type? baseInterface))
                 {
                     resourceType = baseInterface.GetGenericArguments()[0];
                 }

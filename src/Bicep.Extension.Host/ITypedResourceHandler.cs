@@ -26,7 +26,7 @@ public abstract class GenericTypedResourceHandler
         throw new NotImplementedException();
     }
 
-    public LocalExtensibilityOperationResponse Success(
+    public virtual LocalExtensibilityOperationResponse Success(
         string resourceType,
         JsonObject? properties)
         => new

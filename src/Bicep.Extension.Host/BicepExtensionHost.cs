@@ -37,7 +37,7 @@ namespace Bicep.Extension.Host
         {
             // remove previously registered BicepTypeGenerator
             var serviceDescriptor = services.FirstOrDefault(services => services.ServiceType == typeof(ITypeSpecGenerator));
-            if(serviceDescriptor is not null)
+            if (serviceDescriptor is not null)
             {
                 services.Remove(serviceDescriptor);
             }
@@ -48,7 +48,7 @@ namespace Bicep.Extension.Host
 
         public static IServiceCollection AddBicepServices(this IServiceCollection services)
         {
-            services.AddSingleton(new ExtensionSpec("sample-ext", "0.0.1"));
+
             services.AddSingleton<TypeFactory>(sp => new TypeFactory([]));
             services.AddSingleton<BicepResourceHandlerMap>();
             services.AddSingleton(sp => new ExtensionSpec("test-ext", "0.0.1"));
@@ -122,13 +122,15 @@ namespace Bicep.Extension.Host
             where T : GenericTypedResourceHandler, ITypedResourceHandler
         {
             var interfaces = typeof(T).GetInterfaces();
-            if (typeof(T).TryGetStronglyTypedResourceHandler(out var _))
+            if (typeof(T).TryGetTypedResourceHandlerInterface(out var _))
             {
                 throw new InvalidOperationException($"To register a strongly typed resource hander use {nameof(AddTypedBicepResourceHandler)}");
             }
 
-            var genericHandlers = services.Count(service => !service.ServiceType.IsGenericType && service.ServiceType is ITypedResourceHandler);
-            if (genericHandlers > 0)
+            var hasGenericHandler = services.Select(service => service.ImplementationType)
+                                            .OfType<Type>()
+                                            .Any(x => x.IsGenericTypedResourceHandler());
+            if (hasGenericHandler)
             {
                 throw new InvalidOperationException("A generic resource handler has already been added.");
             }
@@ -141,9 +143,33 @@ namespace Bicep.Extension.Host
         public static IServiceCollection AddTypedBicepResourceHandler<T>(this IServiceCollection services)
             where T : GenericTypedResourceHandler, ITypedResourceHandler
         {
-            if (!typeof(T).TryGetStronglyTypedResourceHandler(out var _))
+            if (!typeof(T).TryGetTypedResourceHandlerInterface(out var baseInterface))
             {
                 throw new InvalidOperationException($"To registere a generic resource handler use {nameof(AddGenericBicepResourceHandler)}");
+            }
+
+            var resourceType = baseInterface.GetGenericArguments()[0];
+
+            // get the generic type definition of the class being added, T
+            var resourceTypeHasHandler = services
+                .Where(st => st.ServiceType.IsAssignableFrom(typeof(ITypedResourceHandler<>)))
+                .Select(t =>
+                {
+                    if (t.ImplementationType.TryGetTypedResourceHandlerInterface(out var typedInterface))
+                    {
+                        var genericType = typedInterface.GetGenericArguments()[0];
+                        return genericType;
+                    }
+
+                    return null;
+                })
+                .OfType<Type>()
+                .Any(x => x.GetType() == resourceType.GetType());
+
+
+            if(resourceTypeHasHandler)
+            {
+                throw new InvalidOperationException($"A resource handler for {resourceType.Name} has already been registered.");
             }
 
             services.AddSingleton<ITypedResourceHandler, T>();

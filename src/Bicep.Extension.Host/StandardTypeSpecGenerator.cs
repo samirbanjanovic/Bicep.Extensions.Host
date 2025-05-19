@@ -83,7 +83,7 @@ namespace Bicep.Host.Types
             var types = new List<Type>();
             foreach (var resourceHandler in typedResourceHandlers)
             {
-                if(resourceHandler.GetType().TryGetStronglyTypedResourceHandler(out var resourceHandlerInterface))
+                if(resourceHandler.GetType().TryGetTypedResourceHandlerInterface(out var resourceHandlerInterface))
                 {
                     var genericType = resourceHandlerInterface.GetGenericArguments()[0];
                     types.Add(genericType);
