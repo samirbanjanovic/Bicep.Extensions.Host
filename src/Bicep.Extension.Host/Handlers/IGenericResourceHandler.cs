@@ -6,12 +6,12 @@ namespace Bicep.Extension.Host.Handlers;
 public interface IGenericResourceHandler
 {
     Task<LocalExtensibilityOperationResponse> CreateOrUpdate(
-        dynamic resource,
+        object resource,
         ResourceSpecification? resourceSpecification,
         CancellationToken cancellationToken);
 
     Task<LocalExtensibilityOperationResponse> Preview(
-        dynamic resource,
+        object resource,
         ResourceSpecification resourceSpecification,
         CancellationToken cancellationToken);
 

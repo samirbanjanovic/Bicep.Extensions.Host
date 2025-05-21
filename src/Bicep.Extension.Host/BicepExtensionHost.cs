@@ -32,7 +32,7 @@ namespace Bicep.Extension.Host
 
 
         private static bool IsTracingEnabled
-            => bool.TryParse(Environment.GetEnvironmentVariable("BICEP_TRACING_ENABLED"), out var value) && value;
+            => bool.TryParse(Environment.GetEnvironmentVariable("BICEP_TRACING_ENABLED"), out var isEnabled) && isEnabled;
 
         public static IServiceCollection AddBicepExtensionServices(this IServiceCollection services
                                                                     , Func<TypeFactory, ObjectType, TypeSettings> typeSettings
@@ -166,7 +166,7 @@ namespace Bicep.Extension.Host
         {
             if (!typeof(T).TryGetTypedResourceHandlerInterface(out var baseInterface))
             {
-                throw new InvalidOperationException($"To registere a generic resource handler use {nameof(AddGenericBicepResourceHandler)}");
+                throw new InvalidOperationException($"To register a generic resource handler use {nameof(AddGenericBicepResourceHandler)}");
             }
 
             var resourceType = baseInterface.GetGenericArguments()[0];

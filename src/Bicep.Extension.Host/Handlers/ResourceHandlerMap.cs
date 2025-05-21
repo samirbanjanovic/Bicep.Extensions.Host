@@ -1,29 +1,23 @@
 ﻿using Bicep.Extension.Host.TypeBuilder;
 using Bicep.Local.Extension.Protocol;
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Globalization;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Bicep.Extension.Host.Handlers
 {
     public record TypedHandlerMap(Type Type, IGenericResourceHandler Handler);
 
-    public class ResourceHandlerMap : IResourceHandlerMap
+    public class ResourceHandlerMap 
+        : IResourceHandlerMap
     {
         private readonly ImmutableDictionary<string, TypedHandlerMap> typedResourceHandlers;
         private TypedHandlerMap? genericResourceHandler;
 
-        public ResourceHandlerMap(IEnumerable<IGenericResourceHandler> resourceHandlers)
+        public ResourceHandlerMap(IEnumerable<ITypedResourceHandler<object>> resourceHandlers)
         {
             if (resourceHandlers is null || resourceHandlers.Count() == 0)
             {
                 throw new InvalidOperationException("No resource handlers were provided.");
             }
-
 
             var resourceHandlerMaps = BuildResourceHandlerMap(resourceHandlers);
 
