@@ -140,12 +140,6 @@ namespace Bicep.Extension.Host
         {
             var resourceHandler = typeof(T);
 
-            if (resourceHandler is null)
-            {
-                throw new ArgumentNullException(nameof(resourceHandler));
-            }
-
-
             if (resourceHandler.TryGetTypedResourceHandlerInterface(out var baseInterface))
             {
                 var resourceType = baseInterface.GetGenericArguments()[0];
