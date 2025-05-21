@@ -50,7 +50,7 @@ namespace Bicep.Extension.Host.Handlers
         
         private static (TypedHandlerMap? Generic, ImmutableDictionary<string, TypedHandlerMap> Typed) BuildResourceHandlerMap(IEnumerable<IGenericResourceHandler>? resourceHandlers)
         {
-            var hanlderDictionary = new Dictionary<string, TypedHandlerMap>();
+            var handlerDictionary = new Dictionary<string, TypedHandlerMap>();
             TypedHandlerMap? genericHandler = null;
             // if the resource handler is generic extract the type and add it to the type decleration dictionary
             // as well as the resource handler map
