@@ -6,7 +6,7 @@ namespace Bicep.Extension.Host.Handlers
     public record TypedHandlerMap(Type Type, IResourceHandler Handler);
 
     public class ResourceHandlerFactory 
-        : IResourceHandlerMap
+        : IResourceHandlerFactory
     {
         private readonly ImmutableDictionary<string, TypedHandlerMap> typedResourceHandlers;
 

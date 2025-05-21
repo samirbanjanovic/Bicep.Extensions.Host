@@ -53,7 +53,7 @@ namespace Bicep.Extension.Host
 
             services.AddSingleton(settings);
             services.AddSingleton(typeFactory);
-            services.AddSingleton<IResourceHandlerMap, ResourceHandlerFactory>();
+            services.AddSingleton<IResourceHandlerFactory, ResourceHandlerFactory>();
             services.AddBicepTypeGenerator<StandardTypeSpecGenerator>();
             services.AddGrpc();
             services.AddGrpcReflection();

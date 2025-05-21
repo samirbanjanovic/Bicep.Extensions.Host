@@ -19,20 +19,20 @@ namespace Bicep.Extension.Host
         : Rpc.BicepExtension.BicepExtensionBase
     {
         private readonly ILogger<ResourceRequestDispatcher> logger;
-        private readonly IResourceHandlerMap resourceHandlerMap;
+        private readonly IResourceHandlerFactory resourceHandlerFactory;
         private readonly ITypeSpecGenerator typeSpecGenerator;
 
-        public ResourceRequestDispatcher(IResourceHandlerMap resourceHandlerMap, ITypeSpecGenerator typeSepcGenerator, ILogger<ResourceRequestDispatcher> logger)
+        public ResourceRequestDispatcher(IResourceHandlerFactory resourceHandlerFactory, ITypeSpecGenerator typeSepcGenerator, ILogger<ResourceRequestDispatcher> logger)
         {
             this.logger = logger;
             this.typeSpecGenerator = typeSepcGenerator ?? throw new ArgumentNullException(nameof(typeSepcGenerator));   
-            this.resourceHandlerMap = resourceHandlerMap ?? throw new ArgumentNullException(nameof(resourceHandlerMap));
+            this.resourceHandlerFactory = resourceHandlerFactory ?? throw new ArgumentNullException(nameof(resourceHandlerFactory));
         }
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> CreateOrUpdate(Rpc.ResourceSpecification request, ServerCallContext context)
         {
             var (resource, resourceSpecification) = TypeConvert(request);
-            return WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Handler.CreateOrUpdate(resource, resourceSpecification, context.CancellationToken)));
+            return WrapExceptions(async () => Convert(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.CreateOrUpdate(resource, resourceSpecification, context.CancellationToken)));
         }               
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Preview(Rpc.ResourceSpecification request, ServerCallContext context)
@@ -52,10 +52,10 @@ namespace Bicep.Extension.Host
         }
             
         public override Task<Rpc.LocalExtensibilityOperationResponse> Get(Rpc.ResourceReference request, ServerCallContext context)
-            => WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Handler.Get(Convert(request), context.CancellationToken)));
+            => WrapExceptions(async () => Convert(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.Get(Convert(request), context.CancellationToken)));
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Delete(Rpc.ResourceReference request, ServerCallContext context)
-            => WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Handler.Delete(Convert(request), context.CancellationToken)));
+            => WrapExceptions(async () => Convert(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.Delete(Convert(request), context.CancellationToken)));
 
         public override Task<Rpc.Empty> Ping(Rpc.Empty request, ServerCallContext context)
             => Task.FromResult(new Rpc.Empty());
@@ -63,7 +63,7 @@ namespace Bicep.Extension.Host
         private (object Resource, ResourceSpecification Request) TypeConvert(Rpc.ResourceSpecification request)
         {
             
-            var handlerMap = resourceHandlerMap.GetResourceHandler(request.Type);
+            var handlerMap = resourceHandlerFactory.GetResourceHandler(request.Type);
             var resourceJson = ToJsonObject(request.Properties, "Parsing requested resource properties failed.");
 
             var resource =  JsonSerializer.Deserialize(resourceJson.ToJsonString(), handlerMap.Type);

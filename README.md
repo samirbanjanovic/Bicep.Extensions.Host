@@ -60,7 +60,7 @@ builder.Services
 ```
 
 - Register your handlers and services using the DI container.
-- Use `.AddTypedBicepResourceHandler<T>()` for your strongly typed handler, or `.AddGenericBicepResourceHandler<T>()` for a generic handler.
+- Use the `.AddBicepResourceHandler<T>()` IServiceCollection extension method to register your handler. This method validates that only a single generic handler is registered and that there's only one resource handler per resource type.
 - TypeSpec is generated automatically by the service for your registered types.
 - Build and run your app as you would with any ASP.NET Core application.
 
@@ -77,8 +77,18 @@ You can test your extension's gRPC endpoints using tools like [`grpcurl`](https:
 
 To test the `CreateOrUpdate` method for a strongly typed resource, you can use the following command:
 
+> [!NOTE]
+> This will invoke the associated resource type handler,`StronglyTypedResourceHandler`, as it's mapped to `StronglyTypedResource` type
+
 ```sh
 grpcurl -plaintext -d '{"type": "StronglyTypedResource", "apiVersion": "0.0.1", "properties": "{\"name\":\"sample\",\"actionType\":\"fetch\"}"}' localhost:5000 extension.BicepExtension/CreateOrUpdate
+```
+
+> [!NOTE]
+> This will invoke the generic resource handler, `OmniHandler`, since there's no associated resource handler for type `GenericResource`
+
+```sh
+grpcurl -plaintext -d '{"type": "GenericResource", "apiVersion": "0.0.1", "properties": "{\"name\":\"sample\",\"actionType\":\"fetch\"}"}' localhost:5000 extension.BicepExtension/CreateOrUpdate
 ```
 
 - `-plaintext`: Connect without TLS (for local development).
