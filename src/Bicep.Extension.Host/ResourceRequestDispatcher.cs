@@ -2,6 +2,7 @@
 using System.Linq.Expressions;
 using System.Text.Json;
 using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
 using Bicep.Extension.Host.Handlers;
 using Bicep.Extension.Host.TypeBuilder;
 using Bicep.Local.Extension.Protocol;
@@ -60,22 +61,46 @@ namespace Bicep.Extension.Host
         public override Task<Rpc.Empty> Ping(Rpc.Empty request, ServerCallContext context)
             => Task.FromResult(new Rpc.Empty());
 
-        private (object Resource, ResourceSpecification Request) TypeConvert(Rpc.ResourceSpecification request)
+        private (object? Resource, ResourceSpecification Request) TypeConvert(Rpc.ResourceSpecification request)
         {
             
             var handlerMap = resourceHandlerFactory.GetResourceHandler(request.Type);
             var resourceJson = ToJsonObject(request.Properties, "Parsing requested resource properties failed.");
 
-            var resource =  JsonSerializer.Deserialize(resourceJson.ToJsonString(), handlerMap.Type);
-            
-            if(resource is null)
+            object? resource;
+            if(handlerMap.Type == typeof(object))
             {
-                throw new ArgumentNullException($"No type mapping exists for resource `{request.Type}`");
+                resource = resourceJson;
+            }
+            else
+            {
+                resource = DeserializeJson(request.Type, resourceJson, handlerMap);
             }
 
             ResourceSpecification resourceSpecification = Convert(request);
 
             return (resource, resourceSpecification);
+        }
+
+        private static object? DeserializeJson(string bicepType, JsonObject? resourceJson, TypedHandlerMap handlerMap)
+        {
+            var jsonSerializerSettings = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Converters =
+                {
+                    new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
+                }
+            };
+
+            var resource = JsonSerializer.Deserialize(resourceJson.ToJsonString(), handlerMap.Type, options: jsonSerializerSettings);
+
+            if (resource is null)
+            {
+                throw new ArgumentNullException($"No type mapping exists for resource `{bicepType}`");
+            }
+
+            return resource;
         }
 
         private ResourceSpecification Convert(Rpc.ResourceSpecification request)
