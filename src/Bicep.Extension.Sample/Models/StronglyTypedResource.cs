@@ -1,5 +1,5 @@
 ﻿using Azure.Bicep.Types.Concrete;
-using Bicep.Host.Types;
+using Bicep.Extension.Host.TypeBuilder;
 
 namespace Bicep.Extension.Sample.Models;
 

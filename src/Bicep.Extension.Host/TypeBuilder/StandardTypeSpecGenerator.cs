@@ -2,83 +2,59 @@
 using Azure.Bicep.Types.Concrete;
 using Azure.Bicep.Types.Index;
 using Azure.Bicep.Types.Serialization;
-using Bicep.Extension.Host;
-using Bicep.Host.Types;
+using Bicep.Extension.Host.Handlers;
 using Microsoft.AspNetCore.Identity;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Reflection;
 using System.Text;
 
-namespace Bicep.Host.Types
+namespace Bicep.Extension.Host.TypeBuilder
 {
-    public class TypeConfiguration
+    public class StandardTypeSpecGenerator 
+        : ITypeSpecGenerator
     {
-        private readonly IImmutableDictionary<string, ObjectTypeProperty> configuration;
-
-        public TypeConfiguration(IDictionary<string, ObjectTypeProperty>? configuration)
-        {
-            this.configuration = configuration?.Any() == true ?
-                configuration.ToImmutableDictionary() : ImmutableDictionary.Create<string, ObjectTypeProperty>();
-        }
-
-        public IImmutableDictionary<string, ObjectTypeProperty> Value => configuration;
-
-    }
-    public record ExtensionSpec(string Name, string Version);
-
-    public class StandardTypeSpecGenerator : ITypeSpecGenerator
-    {
-        private readonly TypeSettings settings;
-        private readonly ImmutableArray<ITypedResourceHandler> typedResourceHandlers;
+        private readonly ImmutableArray<IGenericResourceHandler> typedResourceHandlers;
 
         private readonly ConcurrentDictionary<Type, TypeBase> typeCache;
         private readonly TypeFactory factory;
 
-        public StandardTypeSpecGenerator(ExtensionSpec extensionSpec
+        public TypeSettings Settings { get; }
+
+        public StandardTypeSpecGenerator(TypeSettings typeSettings
                                 , TypeFactory factory
-                                , TypeConfiguration typeConfiguration
-                                , IEnumerable<ITypedResourceHandler> typedResourceHandlers)
+                                , IEnumerable<IGenericResourceHandler> typedResourceHandlers)
         {
-            if(extensionSpec is null || (string.IsNullOrEmpty(extensionSpec.Name) || string.IsNullOrEmpty(extensionSpec.Version)))
+            if(typeSettings is null)
             {
-                throw new ArgumentException($"Invalid extension spec {extensionSpec}. Name and Version must have valid values");
+                throw new ArgumentNullException(nameof(typeSettings));
             }
 
             this.typedResourceHandlers = typedResourceHandlers?.Any() == true ?
-                typedResourceHandlers.ToImmutableArray() : throw new ArgumentNullException($"No handlers have been registered");
+                typedResourceHandlers.ToImmutableArray() : throw new ArgumentNullException(nameof(typedResourceHandlers));
 
-            this.typeCache = new ConcurrentDictionary<Type, TypeBase>();
-            this.factory = factory ?? throw new ArgumentNullException($"{nameof(factory)} cannot be null");
+            typeCache = new ConcurrentDictionary<Type, TypeBase>();
+            this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
 
-            var configurationType = factory.Create(() => 
-                new ObjectType("configuration", 
-                    typeConfiguration?.Value ?? throw new ArgumentNullException($"{nameof(typeConfiguration)} cannot be null.")
-                , null));
-
-            this.settings = new TypeSettings(
-                  name: extensionSpec.Name
-                , version: extensionSpec.Version
-                , isSingleton: true
-                , configurationType: new Azure.Bicep.Types.CrossFileTypeReference("types.json", factory.GetIndex(configurationType)));
+            Settings = typeSettings;
         }
 
         public TypeSpec GenerateBicepResourceTypes()
         {
-            var resourceTypes = GetResourceTypes(this.typedResourceHandlers)
+            var resourceTypes = GetResourceTypes(typedResourceHandlers)
                                     .Select(rt => GenerateResource(factory, typeCache, rt))
                                     .ToDictionary(rt => rt.Name, rt => new CrossFileTypeReference("types.json", factory.GetIndex(rt)));
 
             var index = new TypeIndex(resourceTypes
                         , new Dictionary<string, IReadOnlyDictionary<string, IReadOnlyList<CrossFileTypeReference>>>()
-                        , this.settings
+                        , Settings
                         , null);
 
             return new(GetString(stream => TypeSerializer.SerializeIndex(stream, index))
                       , GetString(stream => TypeSerializer.Serialize(stream, factory.GetTypes())));
         }
 
-        private static Type[] GetResourceTypes(IEnumerable<ITypedResourceHandler> typedResourceHandlers)
+        private static Type[] GetResourceTypes(IEnumerable<IGenericResourceHandler> typedResourceHandlers)
         {
             var types = new List<Type>();
             foreach (var resourceHandler in typedResourceHandlers)
@@ -147,7 +123,7 @@ namespace Bicep.Host.Types
             }
 
             return new ObjectType(
-                $"frp/{type.Name}",
+                $"{type.Name}",
                 typeProperties,
                 null);
         }
@@ -155,7 +131,7 @@ namespace Bicep.Host.Types
 
         private ResourceType GenerateResource(TypeFactory typeFactory, ConcurrentDictionary<Type, TypeBase> typeCache, Type type)
             => typeFactory.Create(() => new ResourceType(
-                name: $"frp/{type.Name}",
+                name: $"{type.Name}",
                 scopeType: ScopeType.Unknown,
                 readOnlyScopes: null,
                 body: typeFactory.GetReference(typeFactory.Create(() => GenerateForRecord(typeFactory, typeCache, type))),

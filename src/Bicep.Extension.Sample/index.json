@@ -1,0 +1,17 @@
+{
+  "resources": {
+    "StronglyTypedResource": {
+      "$ref": "types.json#/7"
+    }
+  },
+  "resourceFunctions": {},
+  "settings": {
+    "name": "ExtensionSample",
+    "version": "0.0.1",
+    "isSingleton": true,
+    "configurationType": {
+      "$ref": "types.json#/0"
+    }
+  },
+  "fallbackResourceType": null
+}

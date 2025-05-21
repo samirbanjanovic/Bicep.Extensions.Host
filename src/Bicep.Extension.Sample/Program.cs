@@ -1,7 +1,8 @@
-﻿using Bicep.Extension.Host;
+﻿using Azure.Bicep.Types;
+using Azure.Bicep.Types.Index;
+using Bicep.Extension.Host;
 using Bicep.Extension.Sample.Handlers;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Bicep.Extension.Sample
@@ -15,7 +16,11 @@ namespace Bicep.Extension.Sample
                                 .AddBicepExtensionHost(args);
 
             builder.Services
-                   .AddBicepServices()
+                   .AddBicepExtensionServices((factory, configurationType) => new TypeSettings(
+                       name: "ExtensionSample",
+                       version: "0.0.1",
+                       isSingleton: true,
+                       configurationType: new CrossFileTypeReference("types.json", factory.GetIndex(configurationType))))                   
                    .AddGenericBicepResourceHandler<OmniHandler>()
                    .AddTypedBicepResourceHandler<StronglyTypedHandler>()
                    .AddSingleton<IBackendService, LocalOutputService>();

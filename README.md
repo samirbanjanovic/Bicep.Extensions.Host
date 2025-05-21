@@ -21,7 +21,7 @@ All extension binaries are expected to accept the following CLI arguments:
 
 - `--socket <socket_name>`: The path to the domain socket to connect on.
 - `--pipe <pipe_name>`: The named pipe to connect on.
-- `--http <port>` : The port to use for service. Default is 5000
+- `--http <port>`: The port to use for service. Default is 5000.
 - `--wait-for-debugger`: Signals that you want to debug the extension, and that execution should pause until you are ready.
 
 Once started (either via domain socket or named pipe), the extension:
@@ -31,21 +31,13 @@ Once started (either via domain socket or named pipe), the extension:
 
 ## Handler Types
 
-The handler framework now supports **strongly typed handlers** and **type-based routing**. You can implement one of the following handler types:
+The handler framework now supports **type-based routing**. You can implement one of the following handler types:
 
-- **`TypedResourceHandler<T>`**: A strongly typed handler for a specific resource type. This enables type-safe operations and reduces boilerplate by allowing you to work directly with your resource's .NET type.
-- **`GenericTypedResourceHandler`**: A flexible base handler that can process any resource type using the generic `object` type. This is useful for scenarios where you need to handle multiple resource types in a single handler.
-
-You can also use the following interfaces for advanced scenarios:
-
-- **`ITypedResourceHandler<T>`**: Interface for implementing a strongly typed handler for a specific resource type.
-- **`ITypedResourceHandler`**: Interface for implementing a generic handler that works with untyped resources.
-
-> **Note:**  
-> `TypedResourceHandler<T>` is a specialized implementation of `GenericTypedResourceHandler`.
+- **`ITypedResourceHandler<T>`**: A strongly typed handler for a specific resource type. This enables type-safe operations and reduces boilerplate by allowing you to work directly with your resource's .NET type.
+- **`IGenericResourceHandler`**: A flexible base, "catch all", handler that can process any resource. This is useful for scenarios where you need to handle multiple resource types in a single handler.
 
 > **Important:**  
-> By design, you can only define one generic handler (`GenericTypedResourceHandler`) per extension, but you can have multiple strongly typed handlers (`TypedResourceHandler<T>`) for different resource types.
+> By design, you can only define one generic handler (`IGenericTypedResourceHandler`) per extension, but you can have multiple strongly typed handlers (`ITypedResourceHandler<T>`) for different resource types.
 
 ## Example Usage
 
@@ -61,10 +53,14 @@ public class Program
                             .AddBicepExtensionHost(args);
 
         builder.Services
-                .AddBicepServices()
-                .AddGenericBicepResourceHandler<OmniHandler>()
-                .AddTypedBicepResourceHandler<StronglyTypedHandler>()
-                .AddSingleton<IBackendService, LocalOutputService>();
+               .AddBicepExtensionServices((factory, configurationType) => new TypeSettings(
+                   name: "ExtensionSample",
+                   version: "0.0.1",
+                   isSingleton: true,
+                   configurationType: new CrossFileTypeReference("types.json", factory.GetIndex(configurationType))))
+               .AddGenericBicepResourceHandler<OmniHandler>()
+               .AddTypedBicepResourceHandler<StronglyTypedHandler>()
+               .AddSingleton<IBackendService, LocalOutputService>();
 
         var app = builder.Build();
         app.UseBicepDispatcher();
@@ -77,6 +73,39 @@ public class Program
 - Register your handlers and services using the DI container.
 - Use `.AddTypedBicepResourceHandler<T>()` for your strongly typed handler, or `.AddGenericBicepResourceHandler<T>()` for a generic handler.
 - TypeSpec is generated automatically by the service for your registered types.
-- Build and run your app as you would with any ASP.NET Core gRPC application.
+- Build and run your app as you would with any ASP.NET Core application.
 
 For more details, see the sample implementation in [src/Bicep.Extension.Sample/Program.cs](src/Bicep.Extension.Sample/Program.cs).
+
+## Testing
+
+You can test your extension's gRPC endpoints using tools like [`grpcurl`](https://github.com/fullstorydev/grpcurl) and [`grpcui`](https://github.com/fullstorydev/grpcui).
+
+- **grpcurl**: A command-line tool for interacting with gRPC servers.
+- **grpcui**: A web-based UI for gRPC services, similar to Swagger UI for REST APIs.
+
+### Example grpcurl Request
+
+To test the `CreateOrUpdate` method for a strongly typed resource, you can use the following command:
+
+```sh
+grpcurl -plaintext -d '{"type": "StronglyTypedResource", "apiVersion": "0.0.1", "properties": "{\"name\":\"sample\",\"actionType\":\"fetch\"}"}' localhost:5000 extension.BicepExtension/CreateOrUpdate
+```
+
+- `-plaintext`: Connect without TLS (for local development).
+- `-d`: The request payload in JSON format.
+- `localhost:5000`: The address and port where your extension is running.
+- `extension.BicepExtension/CreateOrUpdate`: The fully qualified gRPC method name.
+
+### Using grpcui
+
+To launch a web UI for your gRPC service, run:
+
+```sh
+grpcui -plaintext localhost:5005
+```
+
+This will open a browser window where you can interactively explore and invoke your extension's gRPC endpoints.
+
+---
+For more information, see the sample implementation in [src/Bicep.Extension.Sample/Program.cs](src/Bicep.Extension.Sample/Program.cs).

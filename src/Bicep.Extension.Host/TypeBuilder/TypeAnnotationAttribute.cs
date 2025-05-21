@@ -1,7 +1,7 @@
 ﻿using Azure.Bicep.Types.Concrete;
 using System;
 
-namespace Bicep.Host.Types
+namespace Bicep.Extension.Host.TypeBuilder
 {
     [AttributeUsage(AttributeTargets.Property)]
     public class TypeAnnotationAttribute : Attribute
