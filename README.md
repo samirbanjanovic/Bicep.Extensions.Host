@@ -45,15 +45,17 @@ The handler framework now supports **strongly typed handlers** and **type-based 
 Routing is automatically performed based on the resource type received, ensuring requests are dispatched to the correct handler.
 
 **Sample registration from [`Program.cs`](src/Bicep.Extension.Sample/Program.cs):**
+
 ```csharp
 builder.Services
     .AddBicepExtensionServices((factory, configurationType) => new TypeSettings(
         name: "ExtensionSample",
         version: "0.0.1",
         isSingleton: true,
-        configurationType: new CrossFileTypeReference("types.json", factory.GetIndex(configurationType))))
-    .AddBicepResourceHandler<OmniHandler>()                // Generic handler
-    .AddBicepResourceHandler<StronglyTypedHandler>()       // Strongly typed handler
+        configurationType: new CrossFileTypeReference("types.json"
+                                                    , factory.GetIndex(configurationType))))
+    .AddBicepResourceHandler<OmniHandler>()               
+    .AddBicepResourceHandler<StronglyTypedHandler>()       
     .AddSingleton<IBackendService, LocalOutputService>();
 ```
 
