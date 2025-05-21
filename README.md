@@ -31,43 +31,30 @@ Once started (either via domain socket or named pipe), the extension:
 
 ## Handler Types
 
-The handler framework now supports **type-based routing**. You can implement one of the following handler types:
+The handler framework now supports **strongly typed handlers** and **type-based routing**. You can implement one of the following handler interfaces:
 
-- **`ITypedResourceHandler<T>`**: A strongly typed handler for a specific resource type. This enables type-safe operations and reduces boilerplate by allowing you to work directly with your resource's .NET type.
-- **`IGenericResourceHandler`**: A flexible base, "catch all", handler that can process any resource. This is useful for scenarios where you need to handle multiple resource types in a single handler.
+- **`IResourceHandler<T>`**: A strongly typed handler for a specific resource type. This enables type-safe operations and reduces boilerplate by allowing you to work directly with your resource's .NET type.  
+  Example: [`StronglyTypedHandler`](src/Bicep.Extension.Sample/Handlers/StronglyTypedHandler.cs) in the sample project implements `IResourceHandler<StronglyTypedResource>`.
+
+- **`IResourceHandler`**: A generic, "catch all" handler that can process any resource. This is useful for scenarios where you need to handle multiple resource types in a single handler.  
+  Example: [`OmniHandler`](src/Bicep.Extension.Sample/Handlers/OmniHandler.cs) in the sample project implements `IResourceHandler`.
 
 > **Important:**  
-> By design, you can only define one generic handler (`IGenericTypedResourceHandler`) per extension, but you can have multiple strongly typed handlers (`ITypedResourceHandler<T>`) for different resource types.
+> By design, you can only define one generic handler (`IResourceHandler`) per extension, but you can have multiple strongly typed handlers (`IResourceHandler<T>`) for different resource types.
 
-## Example Usage
+Routing is automatically performed based on the resource type received, ensuring requests are dispatched to the correct handler.
 
-Below is a minimal example from [`Bicep.Extension.Sample/Program.cs`](src/Bicep.Extension.Sample/Program.cs):
-
+**Sample registration from [`Program.cs`](src/Bicep.Extension.Sample/Program.cs):**
 ```csharp
-public class Program
-{
-    static async Task Main(string[] args)
-    {
-        var builder = WebApplication
-                            .CreateBuilder()
-                            .AddBicepExtensionHost(args);
-
-        builder.Services
-               .AddBicepExtensionServices((factory, configurationType) => new TypeSettings(
-                   name: "ExtensionSample",
-                   version: "0.0.1",
-                   isSingleton: true,
-                   configurationType: new CrossFileTypeReference("types.json", factory.GetIndex(configurationType))))
-               .AddGenericBicepResourceHandler<OmniHandler>()
-               .AddTypedBicepResourceHandler<StronglyTypedHandler>()
-               .AddSingleton<IBackendService, LocalOutputService>();
-
-        var app = builder.Build();
-        app.UseBicepDispatcher();
-
-        await app.RunAsync();
-    }
-}
+builder.Services
+    .AddBicepExtensionServices((factory, configurationType) => new TypeSettings(
+        name: "ExtensionSample",
+        version: "0.0.1",
+        isSingleton: true,
+        configurationType: new CrossFileTypeReference("types.json", factory.GetIndex(configurationType))))
+    .AddBicepResourceHandler<OmniHandler>()                // Generic handler
+    .AddBicepResourceHandler<StronglyTypedHandler>()       // Strongly typed handler
+    .AddSingleton<IBackendService, LocalOutputService>();
 ```
 
 - Register your handlers and services using the DI container.
