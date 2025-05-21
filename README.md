@@ -40,7 +40,7 @@ The handler framework now supports **strongly typed handlers** and **type-based 
   Example: [`OmniHandler`](src/Bicep.Extension.Sample/Handlers/OmniHandler.cs) in the sample project implements `IResourceHandler`.
 
 > [!IMPORTANT]
-> By design, you can only define one generic handler (`IResourceHandler`) per extension, but you can have multiple strongly typed handlers (`IResourceHandler<T>`) for different resource types.
+> By design, you can only define one generic handler (`IResourceHandler`) per extension, but you can have multiple strongly typed handlers (`IResourceHandler<T>`) for different resource types. Each resource type may only be associated with one handler.
 
 Routing is automatically performed based on the resource type received, ensuring requests are dispatched to the correct handler.
 
