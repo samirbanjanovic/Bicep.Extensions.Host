@@ -37,7 +37,7 @@ namespace Bicep.Extension.Host
             var typeFactory = new TypeFactory([]);
             var configuration = new Dictionary<string, ObjectTypeProperty>();
 
-            if(typeSettings is null)
+            if (typeSettings is null)
             {
                 throw new ArgumentNullException(nameof(typeSettings));
             }
@@ -107,15 +107,15 @@ namespace Bicep.Extension.Host
 
         public static IServiceCollection AddBicepTypeGenerator<T>(this IServiceCollection services)
             where T : class, ITypeSpecGenerator
-       {
+        {
             // remove previously registered BicepTypeGenerator
-            var serviceDescriptors = services.Where(services => services.ServiceType == typeof(ITypeSpecGenerator));            
+            var serviceDescriptors = services.Where(services => services.ServiceType == typeof(ITypeSpecGenerator));
             if (serviceDescriptors.Any())
             {
-                foreach(var sd in serviceDescriptors)
+                foreach (var sd in serviceDescriptors)
                 {
                     services.Remove(sd);
-                }                
+                }
             }
 
             services.AddSingleton<ITypeSpecGenerator, T>();
@@ -136,14 +136,14 @@ namespace Bicep.Extension.Host
         }
 
         public static IServiceCollection AddBicepResourceHandler<T>(this IServiceCollection services)
-            where T: class, Handlers.IResourceHandler
+            where T : class, Handlers.IResourceHandler
         {
             var resourceHandler = typeof(T);
 
             if (resourceHandler.TryGetTypedResourceHandlerInterface(out var baseInterface))
             {
                 var resourceType = baseInterface.GetGenericArguments()[0];
-                
+
                 var existingHandler = services
                     .Where(st => st.ServiceType.IsAssignableFrom(typeof(IResourceHandler<>)))
                     .Select(t =>
@@ -159,12 +159,12 @@ namespace Bicep.Extension.Host
                         return null;
                     })
                     .OfType<Type>()
-                    .FirstOrDefault(x => x.GetType() == resourceType.GetType());
-            
-                if(existingHandler is not null)
+                    .FirstOrDefault(et => et == resourceType);
+
+                if (existingHandler is not null)
                 {
                     throw new InvalidOperationException($"A handler [`{existingHandler.FullName}`] is already registered for type [`{resourceType.FullName}`]");
-                }    
+                }
 
             }
             else if (resourceHandler.IsGenericTypedResourceHandler())
