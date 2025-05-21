@@ -1,5 +1,9 @@
 ﻿using System.Collections.Immutable;
+using System.Linq.Expressions;
+using System.Text.Json;
 using System.Text.Json.Nodes;
+using Bicep.Extension.Host.Handlers;
+using Bicep.Extension.Host.TypeBuilder;
 using Bicep.Local.Extension.Protocol;
 using Google.Protobuf.Collections;
 using Grpc.Core;
@@ -10,45 +14,81 @@ using Rpc = Bicep.Local.Extension.Rpc;
 
 namespace Bicep.Extension.Host
 {
-    public class BicepResourceRequestDispatcher
+
+    public class ResourceRequestDispatcher
         : Rpc.BicepExtension.BicepExtensionBase
     {
-        private readonly ILogger<BicepResourceRequestDispatcher> logger;
-        private readonly BicepResourceHandlerMap resourceHandlerMap;
+        private readonly ILogger<ResourceRequestDispatcher> logger;
+        private readonly IResourceHandlerMap resourceHandlerMap;
+        private readonly ITypeSpecGenerator typeSpecGenerator;
 
-        public BicepResourceRequestDispatcher(BicepResourceHandlerMap resourceHandlerMap, ILogger<BicepResourceRequestDispatcher> logger)
+        public ResourceRequestDispatcher(IResourceHandlerMap resourceHandlerMap, ITypeSpecGenerator typeSepcGenerator, ILogger<ResourceRequestDispatcher> logger)
         {
             this.logger = logger;
-
+            this.typeSpecGenerator = typeSepcGenerator ?? throw new ArgumentNullException(nameof(typeSepcGenerator));   
             this.resourceHandlerMap = resourceHandlerMap ?? throw new ArgumentNullException(nameof(resourceHandlerMap));
         }
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> CreateOrUpdate(Rpc.ResourceSpecification request, ServerCallContext context)
-            => WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).CreateOrUpdate(Convert(request), context.CancellationToken)));
+        {
+            var (resource, resourceSpecification) = TypeConvert(request);
+            return WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Handler.CreateOrUpdate(resource, resourceSpecification, context.CancellationToken)));
+        }               
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Preview(Rpc.ResourceSpecification request, ServerCallContext context)
-            => WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Preview(Convert(request), context.CancellationToken)));
+        {
+            var spec = typeSpecGenerator.GenerateBicepResourceTypes();
+            Rpc.LocalExtensibilityOperationResponse opResponse = new();
+            opResponse.Resource = new Rpc.Resource()
+            {
+                Identifiers = spec.TypesJson,
+                Properties = spec.IndexJson,
+                Status = "Succeeded",
+                Type = "types.json",
+                ApiVersion = "1.0.0"
+            };
 
+            return Task.FromResult(opResponse);
+        }
+            
         public override Task<Rpc.LocalExtensibilityOperationResponse> Get(Rpc.ResourceReference request, ServerCallContext context)
-            => WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Get(Convert(request), context.CancellationToken)));
+            => WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Handler.Get(Convert(request), context.CancellationToken)));
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Delete(Rpc.ResourceReference request, ServerCallContext context)
-            => WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Delete(Convert(request), context.CancellationToken)));
+            => WrapExceptions(async () => Convert(await resourceHandlerMap.GetResourceHandler(request.Type).Handler.Delete(Convert(request), context.CancellationToken)));
 
         public override Task<Rpc.Empty> Ping(Rpc.Empty request, ServerCallContext context)
             => Task.FromResult(new Rpc.Empty());
 
+        private (object Resource, ResourceSpecification Request) TypeConvert(Rpc.ResourceSpecification request)
+        {
+            
+            var handlerMap = resourceHandlerMap.GetResourceHandler(request.Type);
+            var resourceJson = ToJsonObject(request.Properties, "Parsing requested resource properties failed.");
+
+            var resource =  JsonSerializer.Deserialize(resourceJson.ToJsonString(), handlerMap.Type);
+            
+            if(resource is null)
+            {
+                throw new ArgumentNullException($"No type mapping exists for resource `{request.Type}`");
+            }
+
+            ResourceSpecification resourceSpecification = Convert(request);
+
+            return (resource, resourceSpecification);
+        }
+
         private ResourceSpecification Convert(Rpc.ResourceSpecification request)
         {
             JsonObject? config = GetExtensionConfig(request.Config);
-            var properties = ToJsonObject(request.Properties, "Parsing resource properties failed. Please ensure is non-null or empty and is a valid JSON object.");
+            var properties = ToJsonObject(request.Properties, "Parsing requested resource properties failed.");
 
             return new(request.Type, request.ApiVersion, properties, config);
         }
 
         private ResourceReference Convert(Rpc.ResourceReference request)
         {
-            JsonObject identifiers = ToJsonObject(request.Identifiers, "Parsing resource identifiers failed. Please ensure is non-null or empty and is a valid JSON object.");
+            JsonObject identifiers = ToJsonObject(request.Identifiers, "Parsing requested resource properties failed.");
             JsonObject? config = GetExtensionConfig(request.Config);
 
             return new(request.Type, request.ApiVersion, identifiers, config);

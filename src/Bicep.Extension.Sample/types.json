@@ -1,0 +1,104 @@
+[
+  {
+    "$type": "ObjectType",
+    "name": "configuration",
+    "properties": {},
+    "additionalProperties": null,
+    "sensitive": null
+  },
+  {
+    "$type": "StringType",
+    "sensitive": null,
+    "minLength": null,
+    "maxLength": null,
+    "pattern": null
+  },
+  {
+    "$type": "StringLiteralType",
+    "value": "Post"
+  },
+  {
+    "$type": "StringLiteralType",
+    "value": "Fetch"
+  },
+  {
+    "$type": "UnionType",
+    "elements": [
+      {
+        "$ref": "#/2"
+      },
+      {
+        "$ref": "#/3"
+      }
+    ]
+  },
+  {
+    "$type": "ObjectType",
+    "name": "Parameters",
+    "properties": {
+      "region": {
+        "type": {
+          "$ref": "#/1"
+        },
+        "flags": 0,
+        "description": "Supported Region"
+      },
+      "subscriptionid": {
+        "type": {
+          "$ref": "#/1"
+        },
+        "flags": 0,
+        "description": "Subscription id"
+      },
+      "endpointName": {
+        "type": {
+          "$ref": "#/1"
+        },
+        "flags": 0,
+        "description": "Service Endpoint"
+      }
+    },
+    "additionalProperties": null,
+    "sensitive": null
+  },
+  {
+    "$type": "ObjectType",
+    "name": "StronglyTypedResource",
+    "properties": {
+      "name": {
+        "type": {
+          "$ref": "#/1"
+        },
+        "flags": 1,
+        "description": "Resource Name"
+      },
+      "actionType": {
+        "type": {
+          "$ref": "#/4"
+        },
+        "flags": 0,
+        "description": "Action type. Options consist of Post and Fetch."
+      },
+      "properties": {
+        "type": {
+          "$ref": "#/5"
+        },
+        "flags": 0,
+        "description": null
+      }
+    },
+    "additionalProperties": null,
+    "sensitive": null
+  },
+  {
+    "$type": "ResourceType",
+    "name": "StronglyTypedResource",
+    "scopeType": 0,
+    "readOnlyScopes": null,
+    "body": {
+      "$ref": "#/6"
+    },
+    "flags": 0,
+    "functions": null
+  }
+]

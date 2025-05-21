@@ -12,28 +12,26 @@ namespace Bicep.Extension.Sample
         : IBackendService
     {
 
-        public Task<bool> CreateOrUpdate(JsonObject json)
+        public Task<bool> CreateOrUpdate(string json)
         {
-            // serialize output to json
-            var jsonString = json.ToJsonString();
             // write output to disk
             using var writer = new StreamWriter("output.json", append: true);           
-            writer.Write(jsonString);
+            writer.Write(json);
             
             return Task.FromResult(true);
         }
 
-        public Task<bool> Delete(JsonObject json)
+        public Task<bool> Delete(string json)
         {
             throw new Exception("Delete method is not implemented.");
         }
 
-        public Task<bool> Get(JsonObject json)
+        public Task<bool> Get(string json)
         {
             throw new NotImplementedException("Get method is not implemented.");
         }
 
-        public Task<bool> Preview(JsonObject json)
+        public Task<bool> Preview(string json)
         {
             throw new NotImplementedException("Preview method is not implemented.");
         }
