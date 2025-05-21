@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 namespace Bicep.Extension.Sample.Handlers
 {
     public class StronglyTypedHandler
-       : ITypedResourceHandler<StronglyTypedResource>
+       : IResourceHandler<StronglyTypedResource>
     {
         private readonly IBackendService backendService;
 

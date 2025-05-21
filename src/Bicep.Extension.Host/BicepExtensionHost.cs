@@ -2,17 +2,13 @@
 using Azure.Bicep.Types.Index;
 using Bicep.Extension.Host.Handlers;
 using Bicep.Extension.Host.TypeBuilder;
-using Bicep.Local.Extension.Protocol;
-using Google.Protobuf.Reflection;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Options;
 using System.Diagnostics;
-using System.Threading;
 
 namespace Bicep.Extension.Host
 {
@@ -57,7 +53,7 @@ namespace Bicep.Extension.Host
 
             services.AddSingleton(settings);
             services.AddSingleton(typeFactory);
-            services.AddSingleton<IResourceHandlerMap, ResourceHandlerMap>();
+            services.AddSingleton<IResourceHandlerMap, ResourceHandlerFactory>();
             services.AddBicepTypeGenerator<StandardTypeSpecGenerator>();
             services.AddGrpc();
             services.AddGrpcReflection();
@@ -111,10 +107,10 @@ namespace Bicep.Extension.Host
 
         public static IServiceCollection AddBicepTypeGenerator<T>(this IServiceCollection services)
             where T : class, ITypeSpecGenerator
-        {
+       {
             // remove previously registered BicepTypeGenerator
             var serviceDescriptors = services.Where(services => services.ServiceType == typeof(ITypeSpecGenerator));            
-            if (serviceDescriptors is not null)
+            if (serviceDescriptors.Any())
             {
                 foreach(var sd in serviceDescriptors)
                 {
@@ -139,63 +135,61 @@ namespace Bicep.Extension.Host
             return app;
         }
 
-        public static IServiceCollection AddGenericBicepResourceHandler<T>(this IServiceCollection services)
-            where T : class, Handlers.IGenericResourceHandler
+        public static IServiceCollection AddBicepResourceHandler<T>(this IServiceCollection services)
+            where T: class, Handlers.IResourceHandler
         {
-            var interfaces = typeof(T).GetInterfaces();
-            if (typeof(T).TryGetTypedResourceHandlerInterface(out var _))
+            var resourceHandler = typeof(T);
+
+            if (resourceHandler is null)
             {
-                throw new InvalidOperationException($"To register a strongly typed resource hander use {nameof(AddTypedBicepResourceHandler)}");
+                throw new ArgumentNullException(nameof(resourceHandler));
             }
 
-            var hasGenericHandler = services.Select(service => service.ImplementationType)
-                                            .OfType<Type>()
-                                            .Any(x => x.IsGenericTypedResourceHandler());
-            if (hasGenericHandler)
+
+            if (resourceHandler.TryGetTypedResourceHandlerInterface(out var baseInterface))
             {
-                throw new InvalidOperationException("A generic resource handler has already been added.");
-            }
-
-            services.AddSingleton<Handlers.IGenericResourceHandler, T>();
-
-            return services;
-        }
-
-        public static IServiceCollection AddTypedBicepResourceHandler<T>(this IServiceCollection services)
-            where T : class, Handlers.IGenericResourceHandler
-        {
-            if (!typeof(T).TryGetTypedResourceHandlerInterface(out var baseInterface))
-            {
-                throw new InvalidOperationException($"To register a generic resource handler use {nameof(AddGenericBicepResourceHandler)}");
-            }
-
-            var resourceType = baseInterface.GetGenericArguments()[0];
-
-            // get the generic type definition of the class being added, T
-            var resourceTypeHasHandler = services
-                .Where(st => st.ServiceType.IsAssignableFrom(typeof(ITypedResourceHandler<>)))
-                .Select(t =>
-                {
-                    var implementationType = t.IsKeyedService ? t.KeyedImplementationType : t.ImplementationType;
-
-                    if (implementationType?.TryGetTypedResourceHandlerInterface(out Type? typedInterface) == true)
+                var resourceType = baseInterface.GetGenericArguments()[0];
+                
+                var existingHandler = services
+                    .Where(st => st.ServiceType.IsAssignableFrom(typeof(IResourceHandler<>)))
+                    .Select(t =>
                     {
-                        var genericType = typedInterface.GetGenericArguments()[0];
-                        return genericType;
-                    }
+                        var implementationType = t.IsKeyedService ? t.KeyedImplementationType : t.ImplementationType;
 
-                    return null;
-                })
-                .OfType<Type>()
-                .Any(x => x.GetType() == resourceType.GetType());
+                        if (implementationType?.TryGetTypedResourceHandlerInterface(out Type? typedInterface) == true)
+                        {
+                            var genericType = typedInterface.GetGenericArguments()[0];
+                            return genericType;
+                        }
 
+                        return null;
+                    })
+                    .OfType<Type>()
+                    .FirstOrDefault(x => x.GetType() == resourceType.GetType());
+            
+                if(existingHandler is not null)
+                {
+                    throw new InvalidOperationException($"A handler [`{existingHandler.FullName}`] is already registered for type [`{resourceType.FullName}`]");
+                }    
 
-            if(resourceTypeHasHandler)
+            }
+            else if (resourceHandler.IsGenericTypedResourceHandler())
             {
-                throw new InvalidOperationException($"A resource handler for {resourceType.Name} has already been registered.");
+                var genericHandler = services.Select(service => service.ImplementationType)
+                                .OfType<Type>()
+                                .FirstOrDefault(x => x.IsGenericTypedResourceHandler());
+
+                if (genericHandler is not null)
+                {
+                    throw new InvalidOperationException($"A generic resource handler [`{genericHandler.FullName}`] has already been added.");
+                }
+            }
+            else
+            {
+                throw new InvalidOperationException($"Failed to register resource handler");
             }
 
-            services.AddSingleton<Handlers.IGenericResourceHandler, T>();
+            services.AddSingleton<Handlers.IResourceHandler, T>();
 
             return services;
         }

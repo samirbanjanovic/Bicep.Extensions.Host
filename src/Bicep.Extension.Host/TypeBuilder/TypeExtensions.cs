@@ -1,9 +1,4 @@
 ﻿using Bicep.Extension.Host.Handlers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Bicep.Extension.Host.TypeBuilder
 {
@@ -11,12 +6,12 @@ namespace Bicep.Extension.Host.TypeBuilder
     {
 
         public static bool IsGenericTypedResourceHandler(this Type type)
-            => type.GetInterfaces().Any(i => !i.IsGenericType && i == typeof(IGenericResourceHandler));
+            => type.GetInterfaces().Any(i => !i.IsGenericType && i == typeof(IResourceHandler));
 
 
         public static bool TryGetTypedResourceHandlerInterface(this Type type, out Type? resourceHandlerInterface)
         {
-            resourceHandlerInterface = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(ITypedResourceHandler<>));
+            resourceHandlerInterface = type.GetInterfaces().FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IResourceHandler<>));
 
             return resourceHandlerInterface is not null;
         }
