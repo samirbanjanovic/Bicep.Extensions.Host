@@ -3,7 +3,6 @@ using Azure.Bicep.Types.Concrete;
 using Azure.Bicep.Types.Index;
 using Azure.Bicep.Types.Serialization;
 using Bicep.Extension.Host.Handlers;
-using Microsoft.AspNetCore.Identity;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Reflection;
@@ -14,7 +13,7 @@ namespace Bicep.Extension.Host.TypeBuilder
     public class StandardTypeSpecGenerator 
         : ITypeSpecGenerator
     {
-        private readonly ImmutableArray<IGenericResourceHandler> typedResourceHandlers;
+        private readonly ImmutableArray<IResourceHandler> resourceHandlers;
 
         private readonly ConcurrentDictionary<Type, TypeBase> typeCache;
         private readonly TypeFactory factory;
@@ -23,15 +22,15 @@ namespace Bicep.Extension.Host.TypeBuilder
 
         public StandardTypeSpecGenerator(TypeSettings typeSettings
                                 , TypeFactory factory
-                                , IEnumerable<IGenericResourceHandler> typedResourceHandlers)
+                                , IEnumerable<IResourceHandler> resourceHandlers)
         {
-            if(typeSettings is null)
+            if (typeSettings is null)
             {
                 throw new ArgumentNullException(nameof(typeSettings));
             }
 
-            this.typedResourceHandlers = typedResourceHandlers?.Any() == true ?
-                typedResourceHandlers.ToImmutableArray() : throw new ArgumentNullException(nameof(typedResourceHandlers));
+            this.resourceHandlers = resourceHandlers?.Any() == true ?
+                resourceHandlers.ToImmutableArray() : throw new ArgumentNullException(nameof(resourceHandlers));
 
             typeCache = new ConcurrentDictionary<Type, TypeBase>();
             this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -41,7 +40,7 @@ namespace Bicep.Extension.Host.TypeBuilder
 
         public TypeSpec GenerateBicepResourceTypes()
         {
-            var resourceTypes = GetResourceTypes(typedResourceHandlers)
+            var resourceTypes = GetResourceTypes(resourceHandlers)
                                     .Select(rt => GenerateResource(factory, typeCache, rt))
                                     .ToDictionary(rt => rt.Name, rt => new CrossFileTypeReference("types.json", factory.GetIndex(rt)));
 
@@ -53,23 +52,6 @@ namespace Bicep.Extension.Host.TypeBuilder
             return new(GetString(stream => TypeSerializer.SerializeIndex(stream, index))
                       , GetString(stream => TypeSerializer.Serialize(stream, factory.GetTypes())));
         }
-
-        private static Type[] GetResourceTypes(IEnumerable<IGenericResourceHandler> typedResourceHandlers)
-        {
-            var types = new List<Type>();
-            foreach (var resourceHandler in typedResourceHandlers)
-            {
-                if(resourceHandler.GetType().TryGetTypedResourceHandlerInterface(out var resourceHandlerInterface))
-                {
-                    var genericType = resourceHandlerInterface.GetGenericArguments()[0];
-                    types.Add(genericType);
-                }
-            }
-            return types.ToArray();
-        }
-
-        private static string CamelCase(string input)
-            => $"{input[..1].ToLowerInvariant()}{input[1..]}";
 
         private TypeBase GenerateForRecord(TypeFactory factory, ConcurrentDictionary<Type, TypeBase> typeCache, Type type)
         {
@@ -128,7 +110,6 @@ namespace Bicep.Extension.Host.TypeBuilder
                 null);
         }
 
-
         private ResourceType GenerateResource(TypeFactory typeFactory, ConcurrentDictionary<Type, TypeBase> typeCache, Type type)
             => typeFactory.Create(() => new ResourceType(
                 name: $"{type.Name}",
@@ -145,5 +126,22 @@ namespace Bicep.Extension.Host.TypeBuilder
 
             return Encoding.UTF8.GetString(memoryStream.ToArray());
         }
+
+        private static Type[] GetResourceTypes(IEnumerable<IResourceHandler> resourceHandlers)
+        {
+            var types = new List<Type>();
+            foreach (var resourceHandler in resourceHandlers)
+            {
+                if (resourceHandler.GetType().TryGetTypedResourceHandlerInterface(out var resourceHandlerInterface))
+                {
+                    var genericType = resourceHandlerInterface.GetGenericArguments()[0];
+                    types.Add(genericType);
+                }
+            }
+            return types.ToArray();
+        }
+
+        private static string CamelCase(string input)
+            => $"{input[..1].ToLowerInvariant()}{input[1..]}";
     }
 }

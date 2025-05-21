@@ -8,7 +8,7 @@ using System.Text.Json.Nodes;
 namespace Bicep.Extension.Sample.Handlers
 {
     public class OmniHandler
-       : Host.Handlers.IGenericResourceHandler
+       : Host.Handlers.IResourceHandler
     {
         private readonly IBackendService backendService;
 
@@ -17,7 +17,7 @@ namespace Bicep.Extension.Sample.Handlers
             this.backendService = backendService;
         }
 
-        public async Task<LocalExtensibilityOperationResponse> CreateOrUpdate(dynamic resource, ResourceSpecification? resourceSpecification, CancellationToken cancellationToken)
+        public async Task<LocalExtensibilityOperationResponse> CreateOrUpdate(object resource, ResourceSpecification? resourceSpecification, CancellationToken cancellationToken)
         {
             var json = JsonSerializer.Serialize(resource);
 
@@ -48,7 +48,7 @@ namespace Bicep.Extension.Sample.Handlers
             throw new NotImplementedException();
         }
 
-        public Task<LocalExtensibilityOperationResponse> Preview(dynamic resource, ResourceSpecification resourceSpecification, CancellationToken cancellationToken)
+        public Task<LocalExtensibilityOperationResponse> Preview(object resource, ResourceSpecification resourceSpecification, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
