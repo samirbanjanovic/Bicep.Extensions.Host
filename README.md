@@ -33,14 +33,14 @@ Once started (either via domain socket or named pipe), the extension:
 
 The handler framework now supports **strongly typed handlers** and **type-based routing**. You can implement one of the following handler interfaces:
 
-- **`IResourceHandler<T>`**: A strongly typed handler for a specific resource type. This enables type-safe operations and reduces boilerplate by allowing you to work directly with your resource's .NET type.  
+- **`IResourceHandler<TResource>`**: A strongly typed handler for a specific resource type. This enables type-safe operations and reduces boilerplate by allowing you to work directly with your resource's .NET type.  
   Example: [`StronglyTypedHandler`](src/Bicep.Extension.Sample/Handlers/StronglyTypedHandler.cs) in the sample project implements `IResourceHandler<StronglyTypedResource>`.
 
 - **`IResourceHandler`**: A generic, "catch all" handler that can process any resource. This is useful for scenarios where you need to handle multiple resource types in a single handler.  
   Example: [`OmniHandler`](src/Bicep.Extension.Sample/Handlers/OmniHandler.cs) in the sample project implements `IResourceHandler`.
 
 > [!IMPORTANT]
-> By design, you can only define one generic handler (`IResourceHandler`) per extension, but you can have multiple strongly typed handlers (`IResourceHandler<T>`) for different resource types. Each resource type may only be associated with one handler.
+> By design, you can only define one generic handler (`IResourceHandler`) per extension, but you can have multiple strongly typed handlers (`IResourceHandler<TResource>`) for different resource types. Each resource type may only be associated with one handler.
 
 Routing is automatically performed based on the resource type received, ensuring requests are dispatched to the correct handler.
 

@@ -1,9 +1,6 @@
 ﻿using Bicep.Extension.Host.Handlers;
-using Bicep.Extension.Sample.Models;
 using Bicep.Local.Extension.Protocol;
-using CommandLine;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 
 namespace Bicep.Extension.Sample.Handlers
 {
@@ -17,38 +14,27 @@ namespace Bicep.Extension.Sample.Handlers
             this.backendService = backendService;
         }
 
-        public async Task<LocalExtensibilityOperationResponse> CreateOrUpdate(object resource, ResourceSpecification? resourceSpecification, CancellationToken cancellationToken)
+        public async Task<HandlerResponse> CreateOrUpdate(HandlerRequest request, CancellationToken cancellationToken)
         {
-            var json = JsonSerializer.Serialize(resource);
+            await this.backendService.CreateOrUpdate(request.ResourceJson.ToJsonString());
 
-            await this.backendService.CreateOrUpdate(json);
-
-            return new
-            (
-                new
-                (
-                    resourceSpecification.Type,
-                    "1.0.0",
-                    "Succeeded",
-                    new(),
-                    new(),
-                    resourceSpecification?.Properties ?? new JsonObject().AsObject()
-                ),
-                null
-            );
+            return HandlerResponse.Success(
+                        request.Type,
+                        "0.0.1",
+                        new());                        
         }
 
-        public Task<LocalExtensibilityOperationResponse> Delete(ResourceReference resourceReference, CancellationToken cancellationToken)
+        public Task<HandlerResponse> Delete(HandlerRequest request, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public Task<LocalExtensibilityOperationResponse> Get(ResourceReference resourceReference, CancellationToken cancellationToken)
+        public Task<HandlerResponse> Get(HandlerRequest request, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public Task<LocalExtensibilityOperationResponse> Preview(object resource, ResourceSpecification resourceSpecification, CancellationToken cancellationToken)
+        public Task<HandlerResponse> Preview(HandlerRequest request, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }

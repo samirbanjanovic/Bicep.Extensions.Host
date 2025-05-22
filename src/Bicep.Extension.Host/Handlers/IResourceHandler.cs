@@ -1,52 +1,41 @@
-﻿using Bicep.Local.Extension.Protocol;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace Bicep.Extension.Host.Handlers;
+﻿namespace Bicep.Extension.Host.Handlers;
 
 public interface IResourceHandler
 {
-    Task<LocalExtensibilityOperationResponse> CreateOrUpdate(
-       object resource,
-       ResourceSpecification? resourceSpecification,
+    Task<HandlerResponse> CreateOrUpdate(
+       HandlerRequest request,
        CancellationToken cancellationToken);
 
-    Task<LocalExtensibilityOperationResponse> Preview(
-        object resource,
-        ResourceSpecification resourceSpecification,
+    Task<HandlerResponse> Preview(
+        HandlerRequest request,
         CancellationToken cancellationToken);
 
-    Task<LocalExtensibilityOperationResponse> Delete(
-        ResourceReference resourceReference,
+    Task<HandlerResponse> Delete(
+        HandlerRequest request,
         CancellationToken cancellationToken);
 
-    Task<LocalExtensibilityOperationResponse> Get(
-        ResourceReference resourceReference,
+    Task<HandlerResponse> Get(
+        HandlerRequest request,
         CancellationToken cancellationToken);
 }
 
-public interface IResourceHandler<T>
+public interface IResourceHandler<TResource>
     : IResourceHandler
-    where T : class
+    where TResource : class
 {
-    Task<LocalExtensibilityOperationResponse> CreateOrUpdate(
-       T resource,
-       ResourceSpecification? resourceSpecification,
+    Task<HandlerResponse> CreateOrUpdate(
+       HandlerRequest<TResource> request,
        CancellationToken cancellationToken);
 
-    Task<LocalExtensibilityOperationResponse> Preview(
-        T resource,
-        ResourceSpecification resourceSpecification,
+    Task<HandlerResponse> Preview(
+        HandlerRequest<TResource> request,
         CancellationToken cancellationToken);
 
-    Task<LocalExtensibilityOperationResponse> IResourceHandler.CreateOrUpdate(object resource, ResourceSpecification? resourceSpecification, CancellationToken cancellationToken)
-    => this.CreateOrUpdate(resource as T ?? throw new ArgumentNullException(nameof(resource)), resourceSpecification, cancellationToken);
+    Task<HandlerResponse> IResourceHandler.CreateOrUpdate(HandlerRequest request, CancellationToken cancellationToken)
+        => this.CreateOrUpdate(request as HandlerRequest<TResource> ?? throw new ArgumentNullException(nameof(request)), cancellationToken);
 
-    Task<LocalExtensibilityOperationResponse> IResourceHandler.Preview(object resource, ResourceSpecification resourceSpecification, CancellationToken cancellationToken)
-        => this.Preview(resource as T ?? throw new ArgumentNullException(nameof(resource)), resourceSpecification, cancellationToken);
+    Task<HandlerResponse> IResourceHandler.Preview(HandlerRequest request, CancellationToken cancellationToken)
+        => this.Preview(request as HandlerRequest<TResource> ?? throw new ArgumentNullException(nameof(request)), cancellationToken);
 
 
 }

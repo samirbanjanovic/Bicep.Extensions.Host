@@ -3,11 +3,13 @@ using System.Collections.Immutable;
 
 namespace Bicep.Extension.Host.Handlers
 {
+    internal record EmptyGeneric();
     public record TypedHandlerMap(Type Type, IResourceHandler Handler);
 
     public class ResourceHandlerFactory 
         : IResourceHandlerFactory
     {
+        
         private readonly ImmutableDictionary<string, TypedHandlerMap> typedResourceHandlers;
 
         private TypedHandlerMap? genericResourceHandler;
@@ -69,7 +71,7 @@ namespace Bicep.Extension.Host.Handlers
                         throw new ArgumentException($"A generic resource handler has already been registered.");
                     }
 
-                    genericHandler = new TypedHandlerMap(typeof(object), resourceHandler);
+                    genericHandler = new TypedHandlerMap(typeof(EmptyGeneric), resourceHandler);
                 }                
                 else
                 {

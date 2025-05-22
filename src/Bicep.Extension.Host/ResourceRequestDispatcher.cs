@@ -26,15 +26,15 @@ namespace Bicep.Extension.Host
         public ResourceRequestDispatcher(IResourceHandlerFactory resourceHandlerFactory, ITypeSpecGenerator typeSepcGenerator, ILogger<ResourceRequestDispatcher> logger)
         {
             this.logger = logger;
-            this.typeSpecGenerator = typeSepcGenerator ?? throw new ArgumentNullException(nameof(typeSepcGenerator));   
+            this.typeSpecGenerator = typeSepcGenerator ?? throw new ArgumentNullException(nameof(typeSepcGenerator));
             this.resourceHandlerFactory = resourceHandlerFactory ?? throw new ArgumentNullException(nameof(resourceHandlerFactory));
         }
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> CreateOrUpdate(Rpc.ResourceSpecification request, ServerCallContext context)
         {
-            var (resource, resourceSpecification) = TypeConvert(request);
-            return WrapExceptions(async () => Convert(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.CreateOrUpdate(resource, resourceSpecification, context.CancellationToken)));
-        }               
+            var handlerRequest = GenerateHandlerRequest(request);
+            return WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.CreateOrUpdate(handlerRequest, context.CancellationToken)));
+        }
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Preview(Rpc.ResourceSpecification request, ServerCallContext context)
         {
@@ -51,39 +51,56 @@ namespace Bicep.Extension.Host
 
             return Task.FromResult(opResponse);
         }
-            
+
         public override Task<Rpc.LocalExtensibilityOperationResponse> Get(Rpc.ResourceReference request, ServerCallContext context)
-            => WrapExceptions(async () => Convert(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.Get(Convert(request), context.CancellationToken)));
+            => WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.Get(ToHandlerRequest(request), context.CancellationToken)));
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Delete(Rpc.ResourceReference request, ServerCallContext context)
-            => WrapExceptions(async () => Convert(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.Delete(Convert(request), context.CancellationToken)));
+            => WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.Delete(ToHandlerRequest(request), context.CancellationToken)));
 
         public override Task<Rpc.Empty> Ping(Rpc.Empty request, ServerCallContext context)
             => Task.FromResult(new Rpc.Empty());
 
-        private (object? Resource, ResourceSpecification Request) TypeConvert(Rpc.ResourceSpecification request)
+        private HandlerRequest? GenerateHandlerRequest(Rpc.ResourceSpecification request)
         {
-            
             var handlerMap = resourceHandlerFactory.GetResourceHandler(request.Type);
             var resourceJson = ToJsonObject(request.Properties, "Parsing requested resource properties failed.");
+            var extensionSettings = GetExtensionConfig(request.Config);
 
-            object? resource;
-            if(handlerMap.Type == typeof(object))
+            if (handlerMap.Type == typeof(EmptyGeneric))
             {
-                resource = resourceJson;
-            }
-            else
-            {
-                resource = DeserializeJson(request.Type, resourceJson, handlerMap);
+                return new HandlerRequest(request.Type, request.ApiVersion, extensionSettings, resourceJson);
             }
 
-            ResourceSpecification resourceSpecification = Convert(request);
+            var resource = DeserializeJson(request.Type, resourceJson, handlerMap);
+            var resourceType = typeof(HandlerRequest<>).MakeGenericType(handlerMap.Type);
 
-            return (resource, resourceSpecification);
+            if (resourceType is null)
+            {
+                throw new InvalidOperationException($"Failed to generate request for {request.Type}");
+            }
+
+            var handlerRequest = Activator.CreateInstance(resourceType, resource, request.ApiVersion, extensionSettings, resourceJson) as HandlerRequest;
+
+            return handlerRequest
+                ?? throw new InvalidOperationException($"Failed to process strongly typed request for {request.Type}");
+
+        }
+
+        private HandlerRequest ToHandlerRequest(Rpc.ResourceReference resourceReference)
+        {
+            var extensionSettings = GetExtensionConfig(resourceReference.Config);
+
+            return new HandlerRequest(resourceReference.Type, resourceReference.HasApiVersion ? resourceReference.ApiVersion : "0.0.0");
         }
 
         private static object? DeserializeJson(string bicepType, JsonObject? resourceJson, TypedHandlerMap handlerMap)
         {
+            if (resourceJson is null)
+            {
+                throw new ArgumentNullException($"No type mapping exists for resource `{resourceJson}`");
+            }
+
             var jsonSerializerSettings = new JsonSerializerOptions
             {
                 PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -103,21 +120,31 @@ namespace Bicep.Extension.Host
             return resource;
         }
 
-        private ResourceSpecification Convert(Rpc.ResourceSpecification request)
-        {
-            JsonObject? config = GetExtensionConfig(request.Config);
-            var properties = ToJsonObject(request.Properties, "Parsing requested resource properties failed.");
+        private Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse handlerResponse)
+            => new Rpc.LocalExtensibilityOperationResponse()
+            {
+                ErrorData = handlerResponse.Status == HandlerResponseStatus.Failed && handlerResponse.Error is not null ?
+                              new Rpc.ErrorData
+                              {
+                                  Error = new Rpc.Error()
+                                  {
+                                      Code = handlerResponse.Error.Code,
+                                      Message = handlerResponse.Message,
+                                      InnerError = handlerResponse.Error.Message,
+                                      Target = handlerResponse.Error.Target,
+                                  }
+                              } : null,
+                Resource = handlerResponse.Status != HandlerResponseStatus.Failed ?
+                              new Rpc.Resource()
+                              {
+                                  Status = handlerResponse.Status.ToString(),
+                                  Type = handlerResponse.Type,
+                                  ApiVersion = handlerResponse.Version,
+                                  Properties = handlerResponse.Properties.ToJsonString(),
+                                  Identifiers = string.Empty
+                              } : null
+            };
 
-            return new(request.Type, request.ApiVersion, properties, config);
-        }
-
-        private ResourceReference Convert(Rpc.ResourceReference request)
-        {
-            JsonObject identifiers = ToJsonObject(request.Identifiers, "Parsing requested resource properties failed.");
-            JsonObject? config = GetExtensionConfig(request.Config);
-
-            return new(request.Type, request.ApiVersion, identifiers, config);
-        }
 
         private JsonObject? GetExtensionConfig(string extensionConfig)
         {
@@ -132,73 +159,6 @@ namespace Bicep.Extension.Host
         private JsonObject ToJsonObject(string json, string errorMessage)
             => JsonNode.Parse(json)?.AsObject() ?? throw new ArgumentNullException(errorMessage);
 
-        private Rpc.Resource? Convert(Resource? response)
-            => response is null ? null :
-                new()
-                {
-                    Identifiers = response.Identifiers.ToJsonString(),
-                    Properties = response.Properties.ToJsonString(),
-                    Status = response.Status,
-                    Type = response.Type,
-                    ApiVersion = response.ApiVersion,
-                };
-
-        private Rpc.ErrorData? Convert(ErrorData? response)
-        {
-            if (response is null)
-            {
-                return null;
-            }
-
-            var errorData = new Rpc.ErrorData()
-            {
-                Error = new Rpc.Error()
-                {
-                    Code = response.Error.Code,
-                    Message = response.Error.Message,
-                    InnerError = response.Error.InnerError?.ToJsonString(),
-                    Target = response.Error.Target,
-                }
-            };
-
-            var errorDetails = Convert(response.Error.Details);
-            if (errorDetails is not null)
-            {
-                errorData.Error.Details.AddRange(errorDetails);
-            }
-            return errorData;
-        }
-
-        private RepeatedField<Rpc.ErrorDetail>? Convert(ErrorDetail[]? response)
-        {
-            if (response is null)
-            {
-                return null;
-            }
-
-            var list = new RepeatedField<Rpc.ErrorDetail>();
-            foreach (var item in response)
-            {
-                list.Add(Convert(item));
-            }
-            return list;
-        }
-
-        private Rpc.ErrorDetail Convert(ErrorDetail response)
-            => new()
-            {
-                Code = response.Code,
-                Message = response.Message,
-                Target = response.Target
-            };
-
-
-        private Rpc.LocalExtensibilityOperationResponse Convert(LocalExtensibilityOperationResponse response)
-            => new()
-            {
-                ErrorData = Convert(response.ErrorData),
-                Resource = Convert(response.Resource)
-            };
 
         private static async Task<Rpc.LocalExtensibilityOperationResponse> WrapExceptions(Func<Task<Rpc.LocalExtensibilityOperationResponse>> func)
         {

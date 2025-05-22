@@ -17,38 +17,29 @@ namespace Bicep.Extension.Sample.Handlers
             this.backendService = backendService;
         }
 
-        public async Task<LocalExtensibilityOperationResponse> CreateOrUpdate(StronglyTypedResource resource, ResourceSpecification? resourceSpecification, CancellationToken cancellationToken)
+        public async Task<HandlerResponse> CreateOrUpdate(HandlerRequest<StronglyTypedResource> request, CancellationToken cancellationToken)
         {
-            var json = JsonSerializer.Serialize(resource);
+            var json = JsonSerializer.Serialize(request.Resource);
 
             await this.backendService.CreateOrUpdate(json);
 
-            return new
-            (
-                new
-                (
-                    typeof(StronglyTypedResource).Name,
-                    "1.0.0",
-                    "Succeeded",
-                    new(),
-                    new(),
-                    resourceSpecification?.Properties ?? new JsonObject().AsObject()
-                ),
-                null
-            );
+            return HandlerResponse.Success(
+                        request.Type,
+                        "0.0.1",
+                        new());
         }
 
-        public Task<LocalExtensibilityOperationResponse> Delete(ResourceReference resourceReference, CancellationToken cancellationToken)
+        public Task<HandlerResponse> Delete(HandlerRequest request, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public Task<LocalExtensibilityOperationResponse> Get(ResourceReference resourceReference, CancellationToken cancellationToken)
+        public Task<HandlerResponse> Get(HandlerRequest request, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
 
-        public Task<LocalExtensibilityOperationResponse> Preview(StronglyTypedResource resource, ResourceSpecification resourceSpecification, CancellationToken cancellationToken)
+        public Task<HandlerResponse> Preview(HandlerRequest<StronglyTypedResource> request, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
