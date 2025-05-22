@@ -1,16 +1,10 @@
-﻿using System.Collections.Immutable;
-using System.Linq.Expressions;
+﻿using Bicep.Extension.Host.Handlers;
+using Bicep.Extension.Host.TypeBuilder;
+using Grpc.Core;
+using Microsoft.Extensions.Logging;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
-using Bicep.Extension.Host.Handlers;
-using Bicep.Extension.Host.TypeBuilder;
-using Bicep.Local.Extension.Protocol;
-using Google.Protobuf.Collections;
-using Grpc.Core;
-using Microsoft.AspNetCore.Components;
-using Microsoft.Extensions.Logging;
-
 using Rpc = Bicep.Local.Extension.Rpc;
 
 namespace Bicep.Extension.Host
@@ -94,32 +88,6 @@ namespace Bicep.Extension.Host
             return new HandlerRequest(resourceReference.Type, resourceReference.HasApiVersion ? resourceReference.ApiVersion : "0.0.0");
         }
 
-        private static object? DeserializeJson(string bicepType, JsonObject? resourceJson, TypedHandlerMap handlerMap)
-        {
-            if (resourceJson is null)
-            {
-                throw new ArgumentNullException($"No type mapping exists for resource `{resourceJson}`");
-            }
-
-            var jsonSerializerSettings = new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                Converters =
-                {
-                    new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
-                }
-            };
-
-            var resource = JsonSerializer.Deserialize(resourceJson.ToJsonString(), handlerMap.Type, options: jsonSerializerSettings);
-
-            if (resource is null)
-            {
-                throw new ArgumentNullException($"No type mapping exists for resource `{bicepType}`");
-            }
-
-            return resource;
-        }
-
         private Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse handlerResponse)
             => new Rpc.LocalExtensibilityOperationResponse()
             {
@@ -159,7 +127,31 @@ namespace Bicep.Extension.Host
         private JsonObject ToJsonObject(string json, string errorMessage)
             => JsonNode.Parse(json)?.AsObject() ?? throw new ArgumentNullException(errorMessage);
 
+        private static object? DeserializeJson(string bicepType, JsonObject? resourceJson, TypedHandlerMap handlerMap)
+        {
+            if (resourceJson is null)
+            {
+                throw new ArgumentNullException($"No type mapping exists for resource `{resourceJson}`");
+            }
 
+            var jsonSerializerSettings = new JsonSerializerOptions
+            {
+                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                Converters =
+                {
+                    new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
+                }
+            };
+
+            var resource = JsonSerializer.Deserialize(resourceJson.ToJsonString(), handlerMap.Type, options: jsonSerializerSettings);
+
+            if (resource is null)
+            {
+                throw new ArgumentNullException($"No type mapping exists for resource `{bicepType}`");
+            }
+
+            return resource;
+        }
         private static async Task<Rpc.LocalExtensibilityOperationResponse> WrapExceptions(Func<Task<Rpc.LocalExtensibilityOperationResponse>> func)
         {
             try
