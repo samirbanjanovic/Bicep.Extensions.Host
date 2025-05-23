@@ -87,7 +87,7 @@ namespace Bicep.Extension.Host
                     }
                 };
 
-                Console.WriteLine(spec.TypesJson);
+                Console.WriteLine($"types =\r\n{spec.TypesJson}\r\nindex =\r\n{spec.IndexJson}");
             }
             else
             {

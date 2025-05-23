@@ -19,10 +19,10 @@ This host starts a **gRPC server** to enable communication between Bicep and you
 
 All extension binaries are expected to accept the following CLI arguments:
 
-- `--socket <socket_name>`: The path to the domain socket to connect on.
-- `--pipe <pipe_name>`: The named pipe to connect on.
-- `--http <port>`: The port to use for service. Default is 5000.
-- `--wait-for-debugger`: Signals that you want to debug the extension, and that execution should pause until you are ready.
+- `--socket | -s | socket <socket_name>`: The path to the domain socket to connect on.
+- `--pipe | -p | pipe <pipe_name>`: The named pipe to connect on.
+- `--http | -t | http <port>`: The port to use for service. Default is 5000.
+- `--describe | -d | describe <true|false>`: The application will output type and index JSON to stdout and will **not** launch the gRPC server.
 
 Once started (either via domain socket or named pipe), the extension:
 
@@ -68,7 +68,7 @@ static async Task Main(string[] args)
     var app = builder.Build();
     app.UseBicepDispatcher();
 
-    await app.RunAsync();
+    await app.RunBicepExtensionAsync();
 }
 ```
 
