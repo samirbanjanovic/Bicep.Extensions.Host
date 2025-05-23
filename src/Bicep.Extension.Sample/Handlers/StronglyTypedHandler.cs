@@ -1,7 +1,5 @@
 ﻿using Bicep.Extension.Host.Handlers;
 using Bicep.Extension.Sample.Models;
-using Bicep.Local.Extension.Protocol;
-using CommandLine;
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;

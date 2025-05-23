@@ -1,6 +1,4 @@
 ﻿using Bicep.Extension.Host.Handlers;
-using Bicep.Local.Extension.Protocol;
-using System.Text.Json;
 
 namespace Bicep.Extension.Sample.Handlers
 {
@@ -21,7 +19,7 @@ namespace Bicep.Extension.Sample.Handlers
             return HandlerResponse.Success(
                         request.Type,
                         "0.0.1",
-                        new());                        
+                        new());
         }
 
         public Task<HandlerResponse> Delete(HandlerRequest request, CancellationToken cancellationToken)

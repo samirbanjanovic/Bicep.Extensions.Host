@@ -1,12 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Text.Json.Nodes;
-using System.Threading.Tasks;
-
-namespace Bicep.Extension.Sample
+﻿namespace Bicep.Extension.Sample
 {
     internal class LocalOutputService
         : IBackendService
@@ -15,9 +7,9 @@ namespace Bicep.Extension.Sample
         public Task<bool> CreateOrUpdate(string json)
         {
             // write output to disk
-            using var writer = new StreamWriter("output.json", append: true);           
+            using var writer = new StreamWriter("output.json", append: true);
             writer.Write(json);
-            
+
             return Task.FromResult(true);
         }
 

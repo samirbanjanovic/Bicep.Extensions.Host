@@ -1,13 +1,12 @@
 ﻿
 using Azure.Bicep.Types.Index;
 
-namespace Bicep.Extension.Host.TypeBuilder
-{
-    public record TypeSpec(string TypesJson, string IndexJson);
+namespace Bicep.Extension.Host.TypeBuilder;
 
-    public interface ITypeSpecGenerator
-    {
-        TypeSettings Settings { get; }
-        TypeSpec GenerateBicepResourceTypes();
-    }
+public record TypeSpec(string TypesJson, string IndexJson);
+
+public interface ITypeSpecGenerator
+{
+    TypeSettings Settings { get; }
+    TypeSpec GenerateBicepResourceTypes();
 }
