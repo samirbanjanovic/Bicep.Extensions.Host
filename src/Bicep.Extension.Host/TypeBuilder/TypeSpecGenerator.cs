@@ -10,27 +10,26 @@ using System.Text;
 
 namespace Bicep.Extension.Host.TypeBuilder
 {
-    public class StandardTypeSpecGenerator 
+    public class TypeSpecGenerator 
         : ITypeSpecGenerator
     {
-        private readonly ImmutableArray<IResourceHandler> resourceHandlers;
+        protected readonly ImmutableArray<IResourceHandler>? resourceHandlers;
 
-        private readonly ConcurrentDictionary<Type, TypeBase> typeCache;
-        private readonly TypeFactory factory;
+        protected readonly ConcurrentDictionary<Type, TypeBase> typeCache;
+        protected readonly TypeFactory factory;
 
         public TypeSettings Settings { get; }
 
-        public StandardTypeSpecGenerator(TypeSettings typeSettings
+        public TypeSpecGenerator(TypeSettings typeSettings
                                 , TypeFactory factory
-                                , IEnumerable<IResourceHandler> resourceHandlers)
+                                , IEnumerable<IResourceHandler>? resourceHandlers)
         {
             if (typeSettings is null)
             {
                 throw new ArgumentNullException(nameof(typeSettings));
             }
 
-            this.resourceHandlers = resourceHandlers?.Any() == true ?
-                resourceHandlers.ToImmutableArray() : throw new ArgumentNullException(nameof(resourceHandlers));
+            this.resourceHandlers = resourceHandlers?.ToImmutableArray();
 
             typeCache = new ConcurrentDictionary<Type, TypeBase>();
             this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -38,9 +37,26 @@ namespace Bicep.Extension.Host.TypeBuilder
             Settings = typeSettings;
         }
 
+        protected virtual Type[] GetResourceTypes()
+        {
+            if (this.resourceHandlers is null)
+                throw new ArgumentNullException(nameof(resourceHandlers));
+
+            var types = new List<Type>();
+            foreach (var resourceHandler in this.resourceHandlers)
+            {
+                if (resourceHandler.GetType().TryGetTypedResourceHandlerInterface(out var resourceHandlerInterface))
+                {
+                    var genericType = resourceHandlerInterface.GetGenericArguments()[0];
+                    types.Add(genericType);
+                }
+            }
+            return types.ToArray();
+        }
+
         public TypeSpec GenerateBicepResourceTypes()
         {
-            var resourceTypes = GetResourceTypes(resourceHandlers)
+            var resourceTypes = GetResourceTypes()
                                     .Select(rt => GenerateResource(factory, typeCache, rt))
                                     .ToDictionary(rt => rt.Name, rt => new CrossFileTypeReference("types.json", factory.GetIndex(rt)));
 
@@ -49,8 +65,8 @@ namespace Bicep.Extension.Host.TypeBuilder
                         , Settings
                         , null);
 
-            return new(GetString(stream => TypeSerializer.SerializeIndex(stream, index))
-                      , GetString(stream => TypeSerializer.Serialize(stream, factory.GetTypes())));
+            return new(GetString(stream => TypeSerializer.Serialize(stream, factory.GetTypes())),
+                       GetString(stream => TypeSerializer.SerializeIndex(stream, index)));
         }
 
         private TypeBase GenerateForRecord(TypeFactory factory, ConcurrentDictionary<Type, TypeBase> typeCache, Type type)
@@ -127,19 +143,7 @@ namespace Bicep.Extension.Host.TypeBuilder
             return Encoding.UTF8.GetString(memoryStream.ToArray());
         }
 
-        private static Type[] GetResourceTypes(IEnumerable<IResourceHandler> resourceHandlers)
-        {
-            var types = new List<Type>();
-            foreach (var resourceHandler in resourceHandlers)
-            {
-                if (resourceHandler.GetType().TryGetTypedResourceHandlerInterface(out var resourceHandlerInterface))
-                {
-                    var genericType = resourceHandlerInterface.GetGenericArguments()[0];
-                    types.Add(genericType);
-                }
-            }
-            return types.ToArray();
-        }
+
 
         private static string CamelCase(string input)
             => $"{input[..1].ToLowerInvariant()}{input[1..]}";
