@@ -15,12 +15,10 @@ namespace Bicep.Extension.Host
     {
         private readonly ILogger<ResourceRequestDispatcher> logger;
         private readonly IResourceHandlerFactory resourceHandlerFactory;
-        private readonly ITypeSpecGenerator typeSpecGenerator;
 
-        public ResourceRequestDispatcher(IResourceHandlerFactory resourceHandlerFactory, ITypeSpecGenerator typeSepcGenerator, ILogger<ResourceRequestDispatcher> logger)
+        public ResourceRequestDispatcher(IResourceHandlerFactory resourceHandlerFactory, ILogger<ResourceRequestDispatcher> logger)
         {
             this.logger = logger;
-            this.typeSpecGenerator = typeSepcGenerator ?? throw new ArgumentNullException(nameof(typeSepcGenerator));
             this.resourceHandlerFactory = resourceHandlerFactory ?? throw new ArgumentNullException(nameof(resourceHandlerFactory));
         }
 
@@ -32,18 +30,8 @@ namespace Bicep.Extension.Host
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Preview(Rpc.ResourceSpecification request, ServerCallContext context)
         {
-            var spec = typeSpecGenerator.GenerateBicepResourceTypes();
-            Rpc.LocalExtensibilityOperationResponse opResponse = new();
-            opResponse.Resource = new Rpc.Resource()
-            {
-                Identifiers = spec.TypesJson,
-                Properties = spec.IndexJson,
-                Status = "Succeeded",
-                Type = "types.json",
-                ApiVersion = "1.0.0"
-            };
-
-            return Task.FromResult(opResponse);
+            var handlerRequest = GenerateHandlerRequest(request);
+            return WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.CreateOrUpdate(handlerRequest, context.CancellationToken)));
         }
 
         public override Task<Rpc.LocalExtensibilityOperationResponse> Get(Rpc.ResourceReference request, ServerCallContext context)

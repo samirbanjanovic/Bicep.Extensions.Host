@@ -9,6 +9,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace Bicep.Extension.Host
 {
@@ -16,14 +19,17 @@ namespace Bicep.Extension.Host
     {
         private static Dictionary<string, string> ArgumentMappings => new Dictionary<string, string>
             {
-                { "--socket", "socket" },
-                { "--http", "http" },
-                { "--pipe", "pipe" },
-                { "--wait-for-debugger", "waitForDebugger" },
+                { "-d", "describe" },
+                { "--describe", "describe" },
+
                 { "-s", "socket" },
+                { "--socket", "socket" },
+
                 { "-t", "http" },
+                { "--http", "http" },
+
                 { "-p", "pipe" },
-                { "-w", "waitForDebugger" }
+                { "--pipe", "pipe" }
             };
 
 
@@ -60,6 +66,35 @@ namespace Bicep.Extension.Host
             return services;
         }
 
+        public static async Task RunBicepExtensionAsync(this WebApplication? app)
+        {
+            if(app is null)
+            {
+                throw new ArgumentNullException(nameof(app));
+            }
+
+            if (app.Configuration.GetValue<bool>("describe"))
+            {
+                var typeSpecGenerator = app.Services.GetRequiredService<ITypeSpecGenerator>();
+                var spec = typeSpecGenerator.GenerateBicepResourceTypes();
+
+                var jsonOptions = new JsonSerializerOptions
+                {
+                    PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+                    Converters =
+                    {
+                        new JsonStringEnumConverter(JsonNamingPolicy.CamelCase)
+                    }
+                };
+
+                Console.WriteLine(spec.TypesJson);
+            }
+            else
+            {
+                await app.RunAsync();
+            }
+        }
+
         public static WebApplicationBuilder AddBicepExtensionHost(this WebApplicationBuilder builder, string[] args)
         {
             if (IsTracingEnabled)
@@ -68,19 +103,6 @@ namespace Bicep.Extension.Host
             }
 
             builder.Configuration.AddCommandLine(args, ArgumentMappings);
-
-            if (builder.Configuration.GetValue<bool>("waitForDebugger"))
-            {
-                var cancellationToken = new CancellationTokenSource(TimeSpan.FromMinutes(5)).Token;
-
-                while (!Debugger.IsAttached && !cancellationToken.IsCancellationRequested)
-                {
-                    Thread.Sleep(100);
-                }
-
-                Debugger.Break();
-            }
-
 
             builder.WebHost.ConfigureKestrel((context, options) =>
             {
