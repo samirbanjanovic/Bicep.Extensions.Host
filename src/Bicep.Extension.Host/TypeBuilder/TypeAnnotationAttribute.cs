@@ -6,12 +6,12 @@ namespace Bicep.Extension.Host.TypeBuilder;
 [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
 public class BicepTypeAttribute : Attribute
 {
-    public BicepTypeAttribute(bool active = true)
+    public BicepTypeAttribute(bool isActive = true)
     {
-        Active = active;
+        IsActive = isActive;
     }
 
-    public bool Active { get; set; }
+    public bool IsActive { get; set; }
 }
 
 

@@ -30,10 +30,9 @@ namespace Bicep.Extension.Sample
                    .AddBicepResourceHandler<StronglyTypedHandler>()
                    .AddSingleton<IBackendService, LocalOutputService>();
 
-            var app = builder.Build();
-            app.UseBicepDispatcher();
-
-            await app.RunBicepExtensionAsync();
+            await builder.Build()
+                         .MapBicepDispatcher<ResourceRequestDispatcher>()
+                         .RunBicepExtensionAsync();
         }
     }
 }

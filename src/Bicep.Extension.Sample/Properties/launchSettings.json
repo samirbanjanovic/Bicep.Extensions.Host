@@ -2,7 +2,7 @@
   "profiles": {
     "Bicep.Extension.Sample": {
       "commandName": "Project",   
-      "commandLineArgs": "-d true",
+      "commandLineArgs": "",
       "environmentVariables": {
         "ASPNETCORE_ENVIRONMENT": "Development"
       }

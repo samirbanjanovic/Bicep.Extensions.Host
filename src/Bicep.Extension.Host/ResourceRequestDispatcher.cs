@@ -42,7 +42,7 @@ public class ResourceRequestDispatcher
     public override Task<Rpc.Empty> Ping(Rpc.Empty request, ServerCallContext context)
         => Task.FromResult(new Rpc.Empty());
 
-    private HandlerRequest? GenerateHandlerRequest(Rpc.ResourceSpecification request)
+    protected virtual HandlerRequest? GenerateHandlerRequest(Rpc.ResourceSpecification request)
     {
         var handlerMap = resourceHandlerFactory.GetResourceHandler(request.Type);
         var resourceJson = ToJsonObject(request.Properties, "Parsing requested resource properties failed.");
@@ -68,14 +68,14 @@ public class ResourceRequestDispatcher
 
     }
 
-    private HandlerRequest ToHandlerRequest(Rpc.ResourceReference resourceReference)
+    protected virtual HandlerRequest ToHandlerRequest(Rpc.ResourceReference resourceReference)
     {
         var extensionSettings = GetExtensionConfig(resourceReference.Config);
 
         return new HandlerRequest(resourceReference.Type, resourceReference.HasApiVersion ? resourceReference.ApiVersion : "0.0.0");
     }
 
-    private Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse handlerResponse)
+    protected virtual Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse handlerResponse)
         => new Rpc.LocalExtensibilityOperationResponse()
         {
             ErrorData = handlerResponse.Status == HandlerResponseStatus.Failed && handlerResponse.Error is not null ?
@@ -101,7 +101,7 @@ public class ResourceRequestDispatcher
         };
 
 
-    private JsonObject? GetExtensionConfig(string extensionConfig)
+    protected virtual JsonObject? GetExtensionConfig(string extensionConfig)
     {
         JsonObject? config = null;
         if (!string.IsNullOrEmpty(extensionConfig))
@@ -111,10 +111,10 @@ public class ResourceRequestDispatcher
         return config;
     }
 
-    private JsonObject ToJsonObject(string json, string errorMessage)
+    protected virtual JsonObject ToJsonObject(string json, string errorMessage)
         => JsonNode.Parse(json)?.AsObject() ?? throw new ArgumentNullException(errorMessage);
 
-    private static object? DeserializeJson(string bicepType, JsonObject? resourceJson, TypedHandlerMap handlerMap)
+    protected virtual object? DeserializeJson(string bicepType, JsonObject? resourceJson, TypedHandlerMap handlerMap)
     {
         if (resourceJson is null)
         {
@@ -139,7 +139,8 @@ public class ResourceRequestDispatcher
 
         return resource;
     }
-    private static async Task<Rpc.LocalExtensibilityOperationResponse> WrapExceptions(Func<Task<Rpc.LocalExtensibilityOperationResponse>> func)
+
+    protected virtual async Task<Rpc.LocalExtensibilityOperationResponse> WrapExceptions(Func<Task<Rpc.LocalExtensibilityOperationResponse>> func)
     {
         try
         {

@@ -12,6 +12,8 @@ namespace Bicep.Extension.Host.TypeBuilder;
 public class TypeSpecGenerator
      : ITypeSpecGenerator
 {
+    private readonly HashSet<Type> visited;
+
     protected readonly ImmutableArray<IResourceHandler>? resourceHandlers;
 
     protected readonly ConcurrentDictionary<Type, TypeBase> typeCache;
@@ -27,10 +29,11 @@ public class TypeSpecGenerator
         {
             throw new ArgumentNullException(nameof(typeSettings));
         }
-
+            
+        this.visited = new HashSet<Type>();
         this.resourceHandlers = resourceHandlers?.ToImmutableArray();
 
-        typeCache = new ConcurrentDictionary<Type, TypeBase>();
+        this.typeCache = new ConcurrentDictionary<Type, TypeBase>();
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
 
         Settings = typeSettings;
@@ -41,19 +44,38 @@ public class TypeSpecGenerator
         if (this.resourceHandlers is null)
             throw new ArgumentNullException(nameof(resourceHandlers));
 
-        var types = new List<Type>();
+        var types = new Dictionary<string, Type>();
         foreach (var resourceHandler in this.resourceHandlers)
         {
             if (resourceHandler.GetType().TryGetTypedResourceHandlerInterface(out var resourceHandlerInterface))
             {
                 var genericType = resourceHandlerInterface.GetGenericArguments()[0];
-                types.Add(genericType);
+
+                types.TryAdd(genericType.Name, genericType);
             }
         }
-        return types.ToArray();
+
+        AppDomain
+            .CurrentDomain
+            .GetAssemblies()
+            .SelectMany(assembly => assembly.GetTypes())
+            .Where(type =>
+                {
+                    var bicepType = type.GetCustomAttributes(typeof(BicepTypeAttribute), true).FirstOrDefault();
+                    bool activeBicepType = false;
+                    if (bicepType is not null)
+                    {
+                        activeBicepType = ((BicepTypeAttribute)bicepType).IsActive;
+                    }
+
+                    return type.IsClass && activeBicepType && types.TryAdd(type.Name, type);
+                })
+            .ToList();
+        
+        return types.Values.ToArray();
     }
 
-    public TypeSpec GenerateBicepResourceTypes()
+    public virtual TypeSpec GenerateBicepResourceTypes()
     {
         var resourceTypes = GetResourceTypes()
                                 .Select(rt => GenerateResource(factory, typeCache, rt))
@@ -68,11 +90,17 @@ public class TypeSpecGenerator
                    GetString(stream => TypeSerializer.SerializeIndex(stream, index)));
     }
 
-    private TypeBase GenerateForRecord(TypeFactory factory, ConcurrentDictionary<Type, TypeBase> typeCache, Type type)
+    protected virtual TypeBase GenerateForRecord(TypeFactory factory, ConcurrentDictionary<Type, TypeBase> typeCache, Type type)
     {
         var typeProperties = new Dictionary<string, ObjectTypeProperty>();
         foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
+            if(visited.Contains(property.PropertyType))
+            {
+                continue;
+            }
+            visited.Add(property.PropertyType);
+
             var annotation = property.GetCustomAttributes<TypeAnnotationAttribute>(true).FirstOrDefault();
             var propertyType = property.PropertyType;
             TypeBase typeReference;
@@ -125,7 +153,7 @@ public class TypeSpecGenerator
             null);
     }
 
-    private ResourceType GenerateResource(TypeFactory typeFactory, ConcurrentDictionary<Type, TypeBase> typeCache, Type type)
+    protected virtual ResourceType GenerateResource(TypeFactory typeFactory, ConcurrentDictionary<Type, TypeBase> typeCache, Type type)
         => typeFactory.Create(() => new ResourceType(
             name: $"{type.Name}",
             scopeType: ScopeType.Unknown,
@@ -134,7 +162,7 @@ public class TypeSpecGenerator
             flags: ResourceFlags.None,
             functions: null));
 
-    private string GetString(Action<Stream> streamWriteFunc)
+    protected virtual string GetString(Action<Stream> streamWriteFunc)
     {
         using var memoryStream = new MemoryStream();
         streamWriteFunc(memoryStream);
@@ -142,8 +170,6 @@ public class TypeSpecGenerator
         return Encoding.UTF8.GetString(memoryStream.ToArray());
     }
 
-
-
-    private static string CamelCase(string input)
+    protected static string CamelCase(string input)
         => $"{input[..1].ToLowerInvariant()}{input[1..]}";
 }

@@ -2,6 +2,7 @@
 using Azure.Bicep.Types.Index;
 using Bicep.Extension.Host.Handlers;
 using Bicep.Extension.Host.TypeBuilder;
+using Bicep.Local.Extension.Rpc;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -127,9 +128,10 @@ public static class BicepExtensionHost
         return builder;
     }
 
-    public static WebApplication UseBicepDispatcher(this WebApplication app)
-    {
-        app.MapGrpcService<ResourceRequestDispatcher>();
+    public static WebApplication MapBicepDispatcher<TDispatcher>(this WebApplication app)
+        where TDispatcher : BicepExtension.BicepExtensionBase
+    {        
+        app.MapGrpcService<TDispatcher>();
 
         var env = app.Environment;
         if (env.IsDevelopment())
