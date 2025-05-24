@@ -30,7 +30,7 @@ public class HandlerResponse
     public string Type { get; }
     public string? Version { get; }
     public HandlerResponseStatus Status { get; }
-    public JsonObject? Properties { get; }
+    public JsonObject Properties { get; }
     public JsonObject? ExtensionSettings { get; }
     public Error? Error { get; }
     public string? Message { get; }

@@ -82,7 +82,7 @@ public class ResourceRequestDispatcher
     }
 
     protected virtual Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse? handlerResponse)
-        => new Rpc.LocalExtensibilityOperationResponse()
+        => handlerResponse is not null ? new Rpc.LocalExtensibilityOperationResponse()
         {
             ErrorData = handlerResponse.Status == HandlerResponseStatus.Error && handlerResponse.Error is not null ?
                             new Rpc.ErrorData
@@ -101,10 +101,10 @@ public class ResourceRequestDispatcher
                                 Status = handlerResponse.Status.ToString(),
                                 Type = handlerResponse.Type,
                                 ApiVersion = handlerResponse.Version,
-                                Properties = handlerResponse.Properties.ToJsonString(),
+                                Properties = handlerResponse.Properties?.ToJsonString(),
                                 Identifiers = string.Empty
                             } : null
-        };
+        } : throw new ArgumentNullException("Failed to process handler response. No response was provided.");
 
     protected virtual JsonObject? GetExtensionConfig(string extensionConfig)
     {
