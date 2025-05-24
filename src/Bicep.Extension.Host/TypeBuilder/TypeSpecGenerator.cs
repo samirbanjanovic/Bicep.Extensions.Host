@@ -45,6 +45,7 @@ public class TypeSpecGenerator
             throw new ArgumentNullException(nameof(resourceHandlers));
 
         var types = new Dictionary<string, Type>();
+
         foreach (var resourceHandler in this.resourceHandlers)
         {
             if (resourceHandler.GetType().TryGetTypedResourceHandlerInterface(out var resourceHandlerInterface))
@@ -62,14 +63,15 @@ public class TypeSpecGenerator
             .Where(type =>
                 {
                     var bicepType = type.GetCustomAttributes(typeof(BicepTypeAttribute), true).FirstOrDefault();
-                    bool activeBicepType = false;
+
                     if (bicepType is not null)
                     {
-                        activeBicepType = ((BicepTypeAttribute)bicepType).IsActive;
+                        return ((BicepTypeAttribute)bicepType).IsActive;
                     }
 
-                    return type.IsClass && activeBicepType && types.TryAdd(type.Name, type);
+                    return false;
                 })
+            .Select(type =>  types.TryAdd(type.Name, type))
             .ToList();
         
         return types.Values.ToArray();
@@ -98,8 +100,7 @@ public class TypeSpecGenerator
             if(visited.Contains(property.PropertyType))
             {
                 continue;
-            }
-            visited.Add(property.PropertyType);
+            }            
 
             var annotation = property.GetCustomAttributes<TypeAnnotationAttribute>(true).FirstOrDefault();
             var propertyType = property.PropertyType;
@@ -123,6 +124,9 @@ public class TypeSpecGenerator
             }
             else if (propertyType.IsClass)
             {
+                // protect against infinite recursion
+                visited.Add(property.PropertyType);
+
                 typeReference = typeCache.GetOrAdd(propertyType, _ => factory.Create(() => GenerateForRecord(factory, typeCache, propertyType)));
             }
             else if (propertyType.IsGenericType &&
