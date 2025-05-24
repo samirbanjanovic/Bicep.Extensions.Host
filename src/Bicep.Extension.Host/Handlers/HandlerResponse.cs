@@ -3,8 +3,8 @@
 namespace Bicep.Extension.Host.Handlers;
 public enum HandlerResponseStatus
 {
-    Succeeded,
-    Failed,
+    Success,
+    Error,
     Canceled,
     TimedOut
 }

@@ -6,10 +6,8 @@ internal record EmptyGeneric();
 public class ResourceHandlerFactory
     : IResourceHandlerFactory
 {
-
-    private readonly ImmutableDictionary<string, TypedHandlerMap> typedResourceHandlers;
-
-    private TypedHandlerMap? genericResourceHandler;
+    public IImmutableDictionary<string, TypedHandlerMap>? TypedResourceHandlers { get; }
+    public TypedHandlerMap? GenericResourceHandler { get; }
 
     public ResourceHandlerFactory(IEnumerable<IResourceHandler> resourceHandlers)
     {
@@ -20,27 +18,27 @@ public class ResourceHandlerFactory
 
         var resourceHandlerMaps = BuildResourceHandlerMap(resourceHandlers);
 
-        typedResourceHandlers = resourceHandlerMaps.Typed;
-        genericResourceHandler = resourceHandlerMaps.Generic;
+        TypedResourceHandlers = resourceHandlerMaps.Typed;
+        GenericResourceHandler = resourceHandlerMaps.Generic;
     }
 
 
-    public TypedHandlerMap GetResourceHandler(Type resourceType)
+    public TypedHandlerMap? GetResourceHandler(Type resourceType)
         => GetResourceHandler(resourceType?.Name ?? throw new ArgumentNullException(nameof(resourceType)));
 
-    public TypedHandlerMap GetResourceHandler(string resourceType)
+    public TypedHandlerMap? GetResourceHandler(string resourceType)
     {
         TypedHandlerMap? handlerMap;
-        if (typedResourceHandlers.TryGetValue(resourceType, out handlerMap))
+        if (TypedResourceHandlers?.TryGetValue(resourceType, out handlerMap) == true)
         {
             return handlerMap;
         }
-        else if (genericResourceHandler is not null)
+        else if (GenericResourceHandler is not null)
         {
-            return genericResourceHandler;
+            return GenericResourceHandler;
         }
 
-        throw new ArgumentException($"No generic resource handler is regsitered and no strongly typed resource handler exists for type {resourceType}");
+        return null;
     }
 
     private static (TypedHandlerMap? Generic, ImmutableDictionary<string, TypedHandlerMap> Typed) BuildResourceHandlerMap(IEnumerable<IResourceHandler> resourceHandlers)
@@ -78,8 +76,4 @@ public class ResourceHandlerFactory
 
         return (genericHandler, handlerDictionary.ToImmutableDictionary());
     }
-
-    public IEnumerable<TypedHandlerMap> GetAllResourceHandlers()
-        => this.typedResourceHandlers.Values
-            .Concat(this.genericResourceHandler is not null ? new[] { this.genericResourceHandler } : Enumerable.Empty<TypedHandlerMap>());
 }
