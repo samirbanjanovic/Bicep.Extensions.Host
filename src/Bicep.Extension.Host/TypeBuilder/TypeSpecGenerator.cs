@@ -14,7 +14,7 @@ public class TypeSpecGenerator
 {
     private readonly HashSet<Type> visited;
 
-    protected readonly ImmutableArray<TypedHandlerMap>? resourceHandlers;
+    protected readonly IImmutableDictionary<string, TypedHandlerMap>? resourceHandlers;
 
     protected readonly ConcurrentDictionary<Type, TypeBase> typeCache;
     protected readonly TypeFactory factory;
@@ -31,8 +31,7 @@ public class TypeSpecGenerator
         }
             
         this.visited = new HashSet<Type>();
-        this.resourceHandlers = resourceHandlerFactory?.GetAllResourceHandlers()?.ToImmutableArray()
-            ?? throw new ArgumentNullException(nameof(resourceHandlerFactory));
+        this.resourceHandlers = resourceHandlerFactory?.TypedResourceHandlers;
 
         this.typeCache = new ConcurrentDictionary<Type, TypeBase>();
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -48,7 +47,7 @@ public class TypeSpecGenerator
         {
             foreach (var resourceHandler in this.resourceHandlers)
             {
-                types.TryAdd(resourceHandler.Type.Name, resourceHandler.Type);
+                types.TryAdd(resourceHandler.Key, resourceHandler.Value.Type);
             }
         }
 

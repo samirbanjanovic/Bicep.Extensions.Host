@@ -76,10 +76,9 @@ public class ResourceRequestDispatcher
     }
 
     protected virtual Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse handlerResponse)
-    {
-        var response = new Rpc.LocalExtensibilityOperationResponse()
+        => new Rpc.LocalExtensibilityOperationResponse()
         {
-            ErrorData = handlerResponse.Status == HandlerResponseStatus.Failed && handlerResponse.Error is not null ?
+            ErrorData = handlerResponse.Status == HandlerResponseStatus.Error && handlerResponse.Error is not null ?
                             new Rpc.ErrorData
                             {
                                 Error = new Rpc.Error()
@@ -90,7 +89,7 @@ public class ResourceRequestDispatcher
                                     Target = handlerResponse.Error.Target,
                                 }
                             } : null,
-            Resource = handlerResponse.Status != HandlerResponseStatus.Failed ?
+            Resource = handlerResponse.Status != HandlerResponseStatus.Error ?
                             new Rpc.Resource()
                             {
                                 Status = handlerResponse.Status.ToString(),
@@ -100,9 +99,6 @@ public class ResourceRequestDispatcher
                                 Identifiers = string.Empty
                             } : null
         };
-
-        return response;
-    }
 
     protected virtual JsonObject? GetExtensionConfig(string extensionConfig)
     {
