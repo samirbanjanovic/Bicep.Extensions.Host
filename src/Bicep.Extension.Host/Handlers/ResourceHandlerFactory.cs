@@ -3,8 +3,6 @@ using System.Collections.Immutable;
 
 namespace Bicep.Extension.Host.Handlers;
 internal record EmptyGeneric();
-public record TypedHandlerMap(Type Type, IResourceHandler Handler);
-
 public class ResourceHandlerFactory
     : IResourceHandlerFactory
 {
@@ -80,4 +78,8 @@ public class ResourceHandlerFactory
 
         return (genericHandler, handlerDictionary.ToImmutableDictionary());
     }
+
+    public IEnumerable<TypedHandlerMap> GetAllResourceHandlers()
+        => this.typedResourceHandlers.Values
+            .Concat(this.genericResourceHandler is not null ? new[] { this.genericResourceHandler } : Enumerable.Empty<TypedHandlerMap>());
 }

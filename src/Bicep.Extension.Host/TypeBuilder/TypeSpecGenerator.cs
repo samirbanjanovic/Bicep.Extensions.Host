@@ -14,7 +14,7 @@ public class TypeSpecGenerator
 {
     private readonly HashSet<Type> visited;
 
-    protected readonly ImmutableArray<IResourceHandler>? resourceHandlers;
+    protected readonly ImmutableArray<TypedHandlerMap>? resourceHandlers;
 
     protected readonly ConcurrentDictionary<Type, TypeBase> typeCache;
     protected readonly TypeFactory factory;
@@ -23,7 +23,7 @@ public class TypeSpecGenerator
 
     public TypeSpecGenerator(TypeSettings typeSettings
                             , TypeFactory factory
-                            , IEnumerable<IResourceHandler>? resourceHandlers)
+                            , IResourceHandlerFactory resourceHandlerFactory)
     {
         if (typeSettings is null)
         {
@@ -31,7 +31,8 @@ public class TypeSpecGenerator
         }
             
         this.visited = new HashSet<Type>();
-        this.resourceHandlers = resourceHandlers?.ToImmutableArray();
+        this.resourceHandlers = resourceHandlerFactory?.GetAllResourceHandlers()?.ToImmutableArray()
+            ?? throw new ArgumentNullException(nameof(resourceHandlerFactory));
 
         this.typeCache = new ConcurrentDictionary<Type, TypeBase>();
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -41,18 +42,13 @@ public class TypeSpecGenerator
 
     protected virtual Type[] GetResourceTypes()
     {
-        if (this.resourceHandlers is null)
-            throw new ArgumentNullException(nameof(resourceHandlers));
-
         var types = new Dictionary<string, Type>();
 
-        foreach (var resourceHandler in this.resourceHandlers)
+        if(resourceHandlers?.Count() > 0 )
         {
-            if (resourceHandler.GetType().TryGetTypedResourceHandlerInterface(out var resourceHandlerInterface))
+            foreach (var resourceHandler in this.resourceHandlers)
             {
-                var genericType = resourceHandlerInterface.GetGenericArguments()[0];
-
-                types.TryAdd(genericType.Name, genericType);
+                types.TryAdd(resourceHandler.Type.Name, resourceHandler.Type);
             }
         }
 

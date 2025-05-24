@@ -76,30 +76,33 @@ public class ResourceRequestDispatcher
     }
 
     protected virtual Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse handlerResponse)
-        => new Rpc.LocalExtensibilityOperationResponse()
+    {
+        var response = new Rpc.LocalExtensibilityOperationResponse()
         {
             ErrorData = handlerResponse.Status == HandlerResponseStatus.Failed && handlerResponse.Error is not null ?
-                          new Rpc.ErrorData
-                          {
-                              Error = new Rpc.Error()
-                              {
-                                  Code = handlerResponse.Error.Code,
-                                  Message = handlerResponse.Message,
-                                  InnerError = handlerResponse.Error.Message,
-                                  Target = handlerResponse.Error.Target,
-                              }
-                          } : null,
+                            new Rpc.ErrorData
+                            {
+                                Error = new Rpc.Error()
+                                {
+                                    Code = handlerResponse.Error.Code,
+                                    Message = handlerResponse.Message,
+                                    InnerError = handlerResponse.Error.Message,
+                                    Target = handlerResponse.Error.Target,
+                                }
+                            } : null,
             Resource = handlerResponse.Status != HandlerResponseStatus.Failed ?
-                          new Rpc.Resource()
-                          {
-                              Status = handlerResponse.Status.ToString(),
-                              Type = handlerResponse.Type,
-                              ApiVersion = handlerResponse.Version,
-                              Properties = handlerResponse.Properties.ToJsonString(),
-                              Identifiers = string.Empty
-                          } : null
+                            new Rpc.Resource()
+                            {
+                                Status = handlerResponse.Status.ToString(),
+                                Type = handlerResponse.Type,
+                                ApiVersion = handlerResponse.Version,
+                                Properties = handlerResponse.Properties.ToJsonString(),
+                                Identifiers = string.Empty
+                            } : null
         };
 
+        return response;
+    }
 
     protected virtual JsonObject? GetExtensionConfig(string extensionConfig)
     {
