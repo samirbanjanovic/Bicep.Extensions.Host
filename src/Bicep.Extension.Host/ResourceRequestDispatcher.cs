@@ -24,27 +24,33 @@ public class ResourceRequestDispatcher
     public override Task<Rpc.LocalExtensibilityOperationResponse> CreateOrUpdate(Rpc.ResourceSpecification request, ServerCallContext context)
     {
         var handlerRequest = GenerateHandlerRequest(request);
-        return WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.CreateOrUpdate(handlerRequest, context.CancellationToken)));
+        return WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type)?.Handler.CreateOrUpdate(handlerRequest, context.CancellationToken)));
     }
 
     public override Task<Rpc.LocalExtensibilityOperationResponse> Preview(Rpc.ResourceSpecification request, ServerCallContext context)
     {
         var handlerRequest = GenerateHandlerRequest(request);
-        return WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.CreateOrUpdate(handlerRequest, context.CancellationToken)));
+        return WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type)?.Handler.CreateOrUpdate(handlerRequest, context.CancellationToken)));
     }
 
     public override Task<Rpc.LocalExtensibilityOperationResponse> Get(Rpc.ResourceReference request, ServerCallContext context)
-        => WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.Get(ToHandlerRequest(request), context.CancellationToken)));
+        => WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type)?.Handler.Get(ToHandlerRequest(request), context.CancellationToken)));
 
     public override Task<Rpc.LocalExtensibilityOperationResponse> Delete(Rpc.ResourceReference request, ServerCallContext context)
-        => WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type).Handler.Delete(ToHandlerRequest(request), context.CancellationToken)));
+        => WrapExceptions(async () => ToLocalOperationResponse(await resourceHandlerFactory.GetResourceHandler(request.Type)?.Handler.Delete(ToHandlerRequest(request), context.CancellationToken)));
 
     public override Task<Rpc.Empty> Ping(Rpc.Empty request, ServerCallContext context)
         => Task.FromResult(new Rpc.Empty());
 
-    protected virtual HandlerRequest? GenerateHandlerRequest(Rpc.ResourceSpecification request)
+    protected virtual HandlerRequest GenerateHandlerRequest(Rpc.ResourceSpecification request)
     {
         var handlerMap = resourceHandlerFactory.GetResourceHandler(request.Type);
+
+        if(handlerMap is null)
+        {
+            throw new InvalidOperationException("No typed or generic handler available for processing");
+        }
+
         var resourceJson = ToJsonObject(request.Properties, "Parsing requested resource properties failed.");
         var extensionSettings = GetExtensionConfig(request.Config);
 
@@ -75,7 +81,7 @@ public class ResourceRequestDispatcher
         return new HandlerRequest(resourceReference.Type, resourceReference.HasApiVersion ? resourceReference.ApiVersion : "0.0.0");
     }
 
-    protected virtual Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse handlerResponse)
+    protected virtual Rpc.LocalExtensibilityOperationResponse ToLocalOperationResponse(HandlerResponse? handlerResponse)
         => new Rpc.LocalExtensibilityOperationResponse()
         {
             ErrorData = handlerResponse.Status == HandlerResponseStatus.Error && handlerResponse.Error is not null ?
