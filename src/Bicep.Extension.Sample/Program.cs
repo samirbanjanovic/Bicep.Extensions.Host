@@ -5,34 +5,32 @@ using Bicep.Extension.Sample.Handlers;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace Bicep.Extension.Sample
+namespace Bicep.Extension.Sample;
+public class Program
 {
-    public class Program
+    static async Task Main(string[] args)
     {
-        static async Task Main(string[] args)
-        {
-            var builder = WebApplication
-                                .CreateBuilder()
-                                .AddBicepExtensionHost(args);
+        var builder = WebApplication
+                            .CreateBuilder()
+                            .AddBicepExtensionHost(args);
 
-            builder.Services
-                   .AddBicepExtensionServices((factory, configurationType) =>
-                        new TypeSettings(
-                           name: "ExtensionSample",
-                           version: "0.0.1",
-                           isSingleton: true,
-                           configurationType:
-                                new CrossFileTypeReference("types.json",
-                                                            factory.GetIndex(configurationType))
-                        )
-                   )
-                   .AddBicepResourceHandler<OmniHandler>()
-                   .AddBicepResourceHandler<StronglyTypedHandler>()
-                   .AddSingleton<IBackendService, LocalOutputService>();
+        builder.Services
+               .AddBicepExtensionServices((factory, configurationType) =>
+                    new TypeSettings(
+                       name: "ExtensionSample",
+                       version: "0.0.1",
+                       isSingleton: true,
+                       configurationType:
+                            new CrossFileTypeReference("types.json",
+                                                        factory.GetIndex(configurationType))
+                    )
+               )
+               .AddBicepResourceHandler<OmniHandler>()
+               .AddBicepResourceHandler<StronglyTypedHandler>()
+               .AddSingleton<IBackendService, LocalOutputService>();
 
-            await builder.Build()
-                         .MapBicepDispatcher<ResourceRequestDispatcher>()
-                         .RunBicepExtensionAsync();
-        }
+        await builder.Build()
+                     .MapBicepDispatcher<ResourceRequestDispatcher>()
+                     .RunBicepExtensionAsync();
     }
 }
