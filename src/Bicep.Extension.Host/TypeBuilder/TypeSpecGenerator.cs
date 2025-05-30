@@ -3,6 +3,7 @@ using Azure.Bicep.Types.Concrete;
 using Azure.Bicep.Types.Index;
 using Azure.Bicep.Types.Serialization;
 using Bicep.Extension.Host.Handlers;
+using System.Collections;
 using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Reflection;
@@ -14,7 +15,9 @@ public class TypeSpecGenerator
 {
     private readonly HashSet<Type> visited;
 
-    protected readonly IImmutableDictionary<string, TypedHandlerMap>? resourceHandlers;
+    private readonly ImmutableDictionary<Type, Func<TypeBase>> typeToTypeBaseMap;
+
+    protected readonly IImmutableDictionary<string, TypeResourceHandler>? resourceHandlers;
 
     protected readonly ConcurrentDictionary<Type, TypeBase> typeCache;
     protected readonly TypeFactory factory;
@@ -23,13 +26,18 @@ public class TypeSpecGenerator
 
     public TypeSpecGenerator(TypeSettings typeSettings
                             , TypeFactory factory
-                            , IResourceHandlerFactory resourceHandlerFactory)
+                            , IResourceHandlerFactory resourceHandlerFactory
+                            , ImmutableDictionary<Type, Func<TypeBase>> typeToTypeBaseMap)
     {
         if (typeSettings is null)
         {
             throw new ArgumentNullException(nameof(typeSettings));
         }
-            
+
+        this.typeToTypeBaseMap = typeToTypeBaseMap is null || typeToTypeBaseMap.Count < 1
+                ? throw new ArgumentNullException(nameof(typeToTypeBaseMap))
+                : typeToTypeBaseMap;
+
         this.visited = new HashSet<Type>();
         this.resourceHandlers = resourceHandlerFactory?.TypedResourceHandlers;
 
@@ -37,13 +45,14 @@ public class TypeSpecGenerator
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
 
         Settings = typeSettings;
+        this.typeToTypeBaseMap = typeToTypeBaseMap;
     }
 
     protected virtual Type[] GetResourceTypes()
     {
         var types = new Dictionary<string, Type>();
 
-        if(resourceHandlers?.Count() > 0 )
+        if (resourceHandlers?.Count() > 0)
         {
             foreach (var resourceHandler in this.resourceHandlers)
             {
@@ -56,19 +65,19 @@ public class TypeSpecGenerator
             .GetAssemblies()
             .SelectMany(assembly => assembly.GetTypes())
             .Where(type =>
+            {
+                var bicepType = type.GetCustomAttributes(typeof(BicepTypeAttribute), true).FirstOrDefault();
+
+                if (bicepType is not null)
                 {
-                    var bicepType = type.GetCustomAttributes(typeof(BicepTypeAttribute), true).FirstOrDefault();
+                    return ((BicepTypeAttribute)bicepType).IsActive;
+                }
 
-                    if (bicepType is not null)
-                    {
-                        return ((BicepTypeAttribute)bicepType).IsActive;
-                    }
-
-                    return false;
-                })
-            .Select(type =>  types.TryAdd(type.Name, type))
+                return false;
+            })
+            .Select(type => types.TryAdd(type.Name, type))
             .ToList();
-        
+
         return types.Values.ToArray();
     }
 
@@ -92,10 +101,10 @@ public class TypeSpecGenerator
         var typeProperties = new Dictionary<string, ObjectTypeProperty>();
         foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance))
         {
-            if(visited.Contains(property.PropertyType))
+            if (visited.Contains(property.PropertyType))
             {
                 continue;
-            }            
+            }
 
             var annotation = property.GetCustomAttributes<TypeAnnotationAttribute>(true).FirstOrDefault();
             var propertyType = property.PropertyType;
@@ -105,17 +114,9 @@ public class TypeSpecGenerator
             {
                 typeReference = factory.Create(() => new StringType(sensitive: true));
             }
-            else if (propertyType == typeof(string))
+            else if (typeToTypeBaseMap.TryGetValue(propertyType, out var typeFunc))
             {
-                typeReference = typeCache.GetOrAdd(propertyType, _ => factory.Create(() => new StringType()));
-            }
-            else if (propertyType == typeof(bool))
-            {
-                typeReference = typeCache.GetOrAdd(propertyType, _ => factory.Create(() => new BooleanType()));
-            }
-            else if (propertyType == typeof(int))
-            {
-                typeReference = typeCache.GetOrAdd(propertyType, _ => factory.Create(() => new IntegerType()));
+                typeReference = typeCache.GetOrAdd(propertyType, _ => factory.Create(typeFunc));
             }
             else if (propertyType.IsClass)
             {

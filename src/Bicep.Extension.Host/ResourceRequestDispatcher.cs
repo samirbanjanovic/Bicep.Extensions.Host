@@ -119,7 +119,7 @@ public class ResourceRequestDispatcher
     protected virtual JsonObject ToJsonObject(string json, string errorMessage)
         => JsonNode.Parse(json)?.AsObject() ?? throw new ArgumentNullException(errorMessage);
 
-    protected virtual object? DeserializeJson(string bicepType, JsonObject? resourceJson, TypedHandlerMap handlerMap)
+    protected virtual object? DeserializeJson(string bicepType, JsonObject? resourceJson, TypeResourceHandler handlerMap)
     {
         if (resourceJson is null)
         {

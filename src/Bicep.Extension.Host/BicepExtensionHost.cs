@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -60,7 +61,13 @@ public static class BicepExtensionHost
         services.AddSingleton(settings)
             .AddSingleton(typeFactory)
             .AddSingleton<IResourceHandlerFactory, ResourceHandlerFactory>()
-            .AddSingleton<ITypeSpecGenerator, TypeSpecGenerator>();
+            .AddSingleton<ITypeSpecGenerator, TypeSpecGenerator>()
+            .AddSingleton(sp => new Dictionary<Type, Func<TypeBase>>
+                {
+                    { typeof(string), () => new StringType() },
+                    { typeof(bool), () => new BooleanType() },
+                    { typeof(int), () => new IntegerType() }
+                }.ToImmutableDictionary());
 
         services.AddGrpc();
         services.AddGrpcReflection();

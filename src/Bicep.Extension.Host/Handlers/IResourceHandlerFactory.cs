@@ -1,13 +1,13 @@
 ﻿using System.Collections.Immutable;
 
 namespace Bicep.Extension.Host.Handlers;
-public record TypedHandlerMap(Type Type, IResourceHandler Handler);
+public record TypeResourceHandler(Type Type, IResourceHandler Handler);
 
 public interface IResourceHandlerFactory
 {
-    IImmutableDictionary<string, TypedHandlerMap>? TypedResourceHandlers { get; }
-    TypedHandlerMap? GenericResourceHandler { get; }
+    IImmutableDictionary<string, TypeResourceHandler>? TypedResourceHandlers { get; }
+    TypeResourceHandler? GenericResourceHandler { get; }
 
-    TypedHandlerMap? GetResourceHandler(string resourceType);
-    TypedHandlerMap? GetResourceHandler(Type resourceType);
+    TypeResourceHandler? GetResourceHandler(string resourceType);
+    TypeResourceHandler? GetResourceHandler(Type resourceType);
 }

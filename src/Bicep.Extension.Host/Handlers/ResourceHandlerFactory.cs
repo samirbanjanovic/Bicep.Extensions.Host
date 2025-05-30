@@ -6,8 +6,8 @@ internal record EmptyGeneric();
 public class ResourceHandlerFactory
     : IResourceHandlerFactory
 {
-    public IImmutableDictionary<string, TypedHandlerMap>? TypedResourceHandlers { get; }
-    public TypedHandlerMap? GenericResourceHandler { get; }
+    public IImmutableDictionary<string, TypeResourceHandler>? TypedResourceHandlers { get; }
+    public TypeResourceHandler? GenericResourceHandler { get; }
 
     public ResourceHandlerFactory(IEnumerable<IResourceHandler> resourceHandlers)
     {
@@ -23,12 +23,12 @@ public class ResourceHandlerFactory
     }
 
 
-    public TypedHandlerMap? GetResourceHandler(Type resourceType)
+    public TypeResourceHandler? GetResourceHandler(Type resourceType)
         => GetResourceHandler(resourceType?.Name ?? throw new ArgumentNullException(nameof(resourceType)));
 
-    public TypedHandlerMap? GetResourceHandler(string resourceType)
+    public TypeResourceHandler? GetResourceHandler(string resourceType)
     {
-        TypedHandlerMap? handlerMap;
+        TypeResourceHandler? handlerMap;
         if (TypedResourceHandlers?.TryGetValue(resourceType, out handlerMap) == true)
         {
             return handlerMap;
@@ -41,10 +41,10 @@ public class ResourceHandlerFactory
         return null;
     }
 
-    private static (TypedHandlerMap? Generic, ImmutableDictionary<string, TypedHandlerMap> Typed) BuildResourceHandlerMap(IEnumerable<IResourceHandler> resourceHandlers)
+    private static (TypeResourceHandler? Generic, ImmutableDictionary<string, TypeResourceHandler> Typed) BuildResourceHandlerMap(IEnumerable<IResourceHandler> resourceHandlers)
     {
-        var handlerDictionary = new Dictionary<string, TypedHandlerMap>();
-        TypedHandlerMap? genericHandler = null;
+        var handlerDictionary = new Dictionary<string, TypeResourceHandler>();
+        TypeResourceHandler? genericHandler = null;
         // if the resource handler is generic extract the type and add it to the type decleration dictionary
         // as well as the resource handler map
         foreach (var resourceHandler in resourceHandlers)
@@ -66,7 +66,7 @@ public class ResourceHandlerFactory
                     throw new ArgumentException($"A generic resource handler has already been registered.");
                 }
 
-                genericHandler = new TypedHandlerMap(typeof(EmptyGeneric), resourceHandler);
+                genericHandler = new TypeResourceHandler(typeof(EmptyGeneric), resourceHandler);
             }
             else
             {

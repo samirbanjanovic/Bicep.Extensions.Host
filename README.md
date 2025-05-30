@@ -47,28 +47,33 @@ Routing is automatically performed based on the resource type received, ensuring
 **Sample registration from [`Program.cs`](src/Bicep.Extension.Sample/Program.cs):**
 
 ```csharp
-static async Task Main(string[] args)
+public class Program
 {
-    var builder = WebApplication
-                        .CreateBuilder()
-                        .AddBicepExtensionHost(args);
+    static async Task Main(string[] args)
+    {
+        var builder = WebApplication
+                            .CreateBuilder()
+                            .AddBicepExtensionHost(args);
 
-    builder.Services
-           .AddBicepExtensionServices((factory, configurationType) => new TypeSettings(
-               name: "ExtensionSample",
-               version: "0.0.1",
-               isSingleton: true,
-               configurationType: new CrossFileTypeReference(
-                                          "types.json"
-                                        , factory.GetIndex(configurationType))))                   
-           .AddBicepResourceHandler<OmniHandler>()
-           .AddBicepResourceHandler<StronglyTypedHandler>()
-           .AddSingleton<IBackendService, LocalOutputService>();
+        builder.Services
+               .AddBicepExtensionServices((factory, configurationType) =>
+                    new TypeSettings(
+                       name: "ExtensionSample",
+                       version: "0.0.1",
+                       isSingleton: true,
+                       configurationType:
+                            new CrossFileTypeReference("types.json",
+                                                        factory.GetIndex(configurationType))
+                    )
+               )
+               .AddBicepResourceHandler<OmniHandler>()
+               .AddBicepResourceHandler<StronglyTypedHandler>()
+               .AddSingleton<IBackendService, LocalOutputService>();
 
-    var app = builder.Build();
-    app.UseBicepDispatcher();
-
-    await app.RunBicepExtensionAsync();
+        await builder.Build()
+                     .MapBicepDispatcher<ResourceRequestDispatcher>()
+                     .RunBicepExtensionAsync();
+    }
 }
 ```
 
