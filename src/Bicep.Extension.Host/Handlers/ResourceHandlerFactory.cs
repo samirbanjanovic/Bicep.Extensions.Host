@@ -1,7 +1,8 @@
-﻿using Bicep.Extension.Host.TypeBuilder;
+﻿using Bicep.Extension.Host.Extensions;
 using System.Collections.Immutable;
 
 namespace Bicep.Extension.Host.Handlers;
+
 internal record EmptyGeneric();
 public class ResourceHandlerFactory
     : IResourceHandlerFactory

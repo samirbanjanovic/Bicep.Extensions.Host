@@ -5,7 +5,7 @@ namespace Bicep.Extension.Host.TypeBuilder;
 
 public record TypeSpec(string TypesJson, string IndexJson);
 
-public interface ITypeSpecGenerator
+public interface ITypeDefinitionBuilder
 {
     TypeSettings Settings { get; }
     TypeSpec GenerateBicepResourceTypes();

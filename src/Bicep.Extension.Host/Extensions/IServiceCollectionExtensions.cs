@@ -1,4 +1,5 @@
-﻿using Azure.Bicep.Types.Concrete;
+﻿using Azure.Bicep.Types;
+using Azure.Bicep.Types.Concrete;
 using Azure.Bicep.Types.Index;
 using Bicep.Extension.Host.Handlers;
 using Bicep.Extension.Host.TypeBuilder;
@@ -14,9 +15,9 @@ using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Bicep.Extension.Host;
+namespace Bicep.Extension.Host.Extensions;
 
-public static class BicepExtensionHost
+public static class IServiceCollectionExtensions
 {
     private static Dictionary<string, string> ArgumentMappings => new Dictionary<string, string>
             {
@@ -38,36 +39,37 @@ public static class BicepExtensionHost
         => bool.TryParse(Environment.GetEnvironmentVariable("BICEP_TRACING_ENABLED"), out var isEnabled) && isEnabled;
 
     public static IServiceCollection AddBicepExtensionServices(this IServiceCollection services
-                                                                , Func<TypeFactory, ObjectType, TypeSettings> typeSettings
-                                                                , Action<TypeFactory, Dictionary<string, ObjectTypeProperty>>? typeConfiguration = null)
+                                                                , string name, string version, bool isSingleton
+                                                                , Action<Dictionary<string, ObjectTypeProperty>>? typeConfiguration = null)
     {
         var typeFactory = new TypeFactory([]);
         var configuration = new Dictionary<string, ObjectTypeProperty>();
 
-        if (typeSettings is null)
-        {
-            throw new ArgumentNullException(nameof(typeSettings));
-        }
-
         if (typeConfiguration is not null)
         {
-            typeConfiguration(typeFactory, configuration);
+            typeConfiguration(configuration);
         }
 
         ObjectType configurationType = typeFactory.Create(() => new ObjectType("configuration", configuration, null));
 
-        TypeSettings settings = typeSettings(typeFactory, configurationType);
+        var typeSettings = new TypeSettings
+            (
+                name,
+                version,
+                isSingleton,
+                new CrossFileTypeReference("types.json", typeFactory.GetIndex(configurationType))
+            );
 
-        services.AddSingleton(settings)
+        services.AddSingleton(typeSettings)
             .AddSingleton(typeFactory)
             .AddSingleton<IResourceHandlerFactory, ResourceHandlerFactory>()
-            .AddSingleton<ITypeSpecGenerator, TypeSpecGenerator>()
+            .AddSingleton<ITypeDefinitionBuilder, TypeDefinitionBuilder>()
             .AddSingleton(sp => new Dictionary<Type, Func<TypeBase>>
-                {
-                    { typeof(string), () => new StringType() },
-                    { typeof(bool), () => new BooleanType() },
-                    { typeof(int), () => new IntegerType() }
-                }.ToImmutableDictionary());
+                            {
+                                { typeof(string), () => new StringType() },
+                                { typeof(bool), () => new BooleanType() },
+                                { typeof(int), () => new IntegerType() }
+                            }.ToImmutableDictionary());
 
         services.AddGrpc();
         services.AddGrpcReflection();
@@ -83,7 +85,7 @@ public static class BicepExtensionHost
 
         if (app.Configuration.GetValue<bool>("describe"))
         {
-            var typeSpecGenerator = app.Services.GetRequiredService<ITypeSpecGenerator>();
+            var typeSpecGenerator = app.Services.GetRequiredService<ITypeDefinitionBuilder>();
             var spec = typeSpecGenerator.GenerateBicepResourceTypes();
 
             var jsonOptions = new JsonSerializerOptions
@@ -116,7 +118,7 @@ public static class BicepExtensionHost
         {
             (string? Socket, string? Pipe, int Http) connectionOptions = (context.Configuration.GetValue<string>("socket"),
                                                                           context.Configuration.GetValue<string>("pipe"),
-                                                                          context.Configuration.GetValue<int>("http", 5000));
+                                                                          context.Configuration.GetValue("http", 5000));
 
             switch (connectionOptions)
             {
@@ -150,7 +152,7 @@ public static class BicepExtensionHost
     }
 
     public static IServiceCollection AddBicepResourceHandler<T>(this IServiceCollection services)
-        where T : class, Handlers.IResourceHandler
+        where T : class, IResourceHandler
     {
         var resourceHandler = typeof(T);
 

@@ -1,6 +1,6 @@
 ﻿using Bicep.Extension.Host.Handlers;
 
-namespace Bicep.Extension.Host.TypeBuilder;
+namespace Bicep.Extension.Host.Extensions;
 
 public static class TypeExtensions
 {

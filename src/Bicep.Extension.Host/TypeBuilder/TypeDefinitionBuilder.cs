@@ -10,23 +10,21 @@ using System.Reflection;
 using System.Text;
 
 namespace Bicep.Extension.Host.TypeBuilder;
-public class TypeSpecGenerator
-     : ITypeSpecGenerator
+public class TypeDefinitionBuilder
+     : ITypeDefinitionBuilder
 {
     private readonly HashSet<Type> visited;
-
+    private readonly TypeProvider typeProvider;
     private readonly ImmutableDictionary<Type, Func<TypeBase>> typeToTypeBaseMap;
-
-    protected readonly IImmutableDictionary<string, TypeResourceHandler>? resourceHandlers;
 
     protected readonly ConcurrentDictionary<Type, TypeBase> typeCache;
     protected readonly TypeFactory factory;
 
     public TypeSettings Settings { get; }
 
-    public TypeSpecGenerator(TypeSettings typeSettings
+    public TypeDefinitionBuilder(TypeSettings typeSettings
                             , TypeFactory factory
-                            , IResourceHandlerFactory resourceHandlerFactory
+                            , TypeProvider typeProvider
                             , ImmutableDictionary<Type, Func<TypeBase>> typeToTypeBaseMap)
     {
         if (typeSettings is null)
@@ -39,7 +37,7 @@ public class TypeSpecGenerator
                 : typeToTypeBaseMap;
 
         this.visited = new HashSet<Type>();
-        this.resourceHandlers = resourceHandlerFactory?.TypedResourceHandlers;
+        this.typeProvider = typeProvider;
 
         this.typeCache = new ConcurrentDictionary<Type, TypeBase>();
         this.factory = factory ?? throw new ArgumentNullException(nameof(factory));
@@ -48,42 +46,9 @@ public class TypeSpecGenerator
         this.typeToTypeBaseMap = typeToTypeBaseMap;
     }
 
-    protected virtual Type[] GetResourceTypes()
-    {
-        var types = new Dictionary<string, Type>();
-
-        if (resourceHandlers?.Count() > 0)
-        {
-            foreach (var resourceHandler in this.resourceHandlers)
-            {
-                types.TryAdd(resourceHandler.Key, resourceHandler.Value.Type);
-            }
-        }
-
-        AppDomain
-            .CurrentDomain
-            .GetAssemblies()
-            .SelectMany(assembly => assembly.GetTypes())
-            .Where(type =>
-            {
-                var bicepType = type.GetCustomAttributes(typeof(BicepTypeAttribute), true).FirstOrDefault();
-
-                if (bicepType is not null)
-                {
-                    return ((BicepTypeAttribute)bicepType).IsActive;
-                }
-
-                return false;
-            })
-            .Select(type => types.TryAdd(type.Name, type))
-            .ToList();
-
-        return types.Values.ToArray();
-    }
-
     public virtual TypeSpec GenerateBicepResourceTypes()
     {
-        var resourceTypes = GetResourceTypes()
+        var resourceTypes = typeProvider.GetResourceTypes()
                                 .Select(rt => GenerateResource(factory, typeCache, rt))
                                 .ToDictionary(rt => rt.Name, rt => new CrossFileTypeReference("types.json", factory.GetIndex(rt)));
 
@@ -117,6 +82,30 @@ public class TypeSpecGenerator
             else if (typeToTypeBaseMap.TryGetValue(propertyType, out var typeFunc))
             {
                 typeReference = typeCache.GetOrAdd(propertyType, _ => factory.Create(typeFunc));
+            }
+            else if (propertyType != typeof(string) && propertyType.IsAssignableTo(typeof(IEnumerable)))
+            {
+                Type? elementType = null;
+                if (propertyType.IsArray)
+                {
+                    elementType = propertyType.GetElementType();
+                }
+                else if (propertyType.IsGenericType &&
+                         propertyType.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+                {
+                    elementType = propertyType.GetGenericArguments()[0];
+                }
+
+                if (elementType is null)
+                {
+                    throw new NotImplementedException($"Unsupported collection type {propertyType}");
+                }
+
+                typeReference = factory.Create(()
+                     => new ArrayType(factory.GetReference(
+                                             typeCache.GetOrAdd(elementType
+                                            , _ => factory.Create(() => GenerateForRecord(factory, typeCache, elementType))))));
+
             }
             else if (propertyType.IsClass)
             {
