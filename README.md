@@ -56,16 +56,7 @@ public class Program
                             .AddBicepExtensionHost(args);
 
         builder.Services
-               .AddBicepExtensionServices((factory, configurationType) =>
-                    new TypeSettings(
-                       name: "ExtensionSample",
-                       version: "0.0.1",
-                       isSingleton: true,
-                       configurationType:
-                            new CrossFileTypeReference("types.json",
-                                                        factory.GetIndex(configurationType))
-                    )
-               )
+               .AddBicepExtensionServices(name: "sample-ext", version: "0.0.1", isSingleton: true)
                .AddBicepResourceHandler<OmniHandler>()
                .AddBicepResourceHandler<StronglyTypedHandler>()
                .AddSingleton<IBackendService, LocalOutputService>();
